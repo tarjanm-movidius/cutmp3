@@ -1,4 +1,8 @@
 
+version 2.1.1:
+Small time display fix
+Reading ID3V2 fixed
+
 version 2.1:
 Layer 2 (MP2 file) support
 

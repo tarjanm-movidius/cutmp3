@@ -4,7 +4,7 @@ remove VBR file length info
   TLEN
    The 'Length' frame contains the length of the audio file in
    milliseconds, represented as a numeric string.
--> copyid3()
+-> copyid3v2()
 
 create ID3V2
 
