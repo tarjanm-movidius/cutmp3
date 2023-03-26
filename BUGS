@@ -1,0 +1,2 @@
+cutmp3 may crash with segmentation fault in pause seeking.
+This will hopefully be fixed when fading is implemented.

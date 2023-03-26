@@ -1,0 +1,159 @@
+
+version 1.8.4:
+added manpage thanks to Marc O. Gloor
+
+version 1.8.3:
+fixed major crash, nobody bothered?
+
+version 1.8.2:
+temporary files are mostly being removed after usage
+fixed bug in tag editing
+
+version 1.8.1:
+fixed a bug in case of invalid data after a ID3 V2 tag, reported by Byron F. Martin
+
+version 1.8:
+on setting endpoint and after seeking end of silence, file is being played up to this point
+greatly improved ID3 V1 + V2 tag import/export/copying and file naming
+
+version 1.7:
+added ID3 V2 tag (<2.4.10) seeking
+improved file naming for "save with tag"
+copies ID3 V2 tag when useful
+
+version 1.6.4:
+file info also shows ID3 V1 tag
+ID3 V1 tag is being imported
+
+version 1.6.3:
+'i' shows file info
+fixed a time bug in exact mode
+'o' overwrites existing file the next time
+
+version 1.6.2:
+switched to four digit numbers
+smarter saving with ID3 tags
+
+version 1.6.1:
+fixed a small bug in silence seeking reported by Nick Simicich
+speeded up silence seeking, hopefully did not introduce new bugs with this
+
+version 1.6:
+better handling of large ID3 V2 tags
+beginning of sound is now displayed as 0:00 as it should
+more output for -F switch
+fixed time counting in exact mode
+fixed time display in exact mode
+improved silence seeking
+verbose writing of configuration file
+
+version 1.5.2:
+no more minimum filesize
+fixed framesize calculation
+fixed frame counting method
+fixed finding of first valid frame
+
+version 1.5.1:
+fixed some small bugs in timetable cutting reported by Don Rozenberg
+
+version 1.5:
+added switch to only print sampling frequency and total number of frames
+added switch to write to an exactly specified filename
+fixed a bug which caused a crash
+several translations were added
+added usage of configuration file for silence length, silence volume, quiet mode and soundcard number
+
+version 1.4:
+added function to search for beginning of next silence
+silence seeking stops when silence is already much longer than wanted
+noninteractive cutting now supports higher time resolution
+added support for output to other soundcard
+
+version 1.3:
+when saving with (already included) tag, filename is $artist - $title.mp3
+fixed a bug in tag seeking
+fixed a bug which made it impossible to write many files
+code cleanups
+
+version 1.2:
+improved stability of silence seeking a lot
+some other small changes
+
+version 1.1.1:
+fixed another bug in silence seeking
+
+version 1.1:
+introduced a quiet mode, toggable with '#'
+introduced an exact mode, useful for VBR files!
+cutmp3 does not wait anymore until playback has finished
+rewrite of prevframe() and nextframe(), much better and more elegant now
+detected another bug in mpglib.c, needs to be resolved
+
+version 1.0:
+finally(?!) fixed the bug in silence seeking which was a too small malloc() in InitMP3() in mpglib.c
+another speed improvement in silence seeking
+website was updated to celebrate version 1.0 ;-)
+
+version 0.9.6:
+fixed some nasty bugs in silence seeking, still not perfect however
+improved ID3 tag searching
+small changes in the UI
+
+version 0.9.5:
+huge speed improvement in silence seeking
+
+version 0.9.4:
+made non-interactive cutting exact even for VBR files!
+distinction between VBR and CBR in info mode -I
+
+version 0.9.3:
+fixed small bug in savewithtag()
+improved determination of average bitrate
+
+version 0.9.2:
+added seek to end of next ID3 v1 tag
+
+version 0.9.1:
+improved error correction
+
+version 0.9:
+improved ID3 input a lot via libreadline
+added configurable silence detection via mpglib
+improved prevframe() and nextframe(), still not perfect
+
+version 0.7:
+Framesize() is now calculated correct
+added first ID3 tag support
+
+version 0.6:
+does not display 60 seconds anymore
+w is shortcut for bsa
+displays time after/before startpoint
+fixed internal seeking mechanism (again)
+added MPEG2.5 support
+introduced -I for file information
+added KDE support
+
+version 0.5:
+improved mp3 seeking mechanism a lot, should be nearly errorfree
+finally cutmp3 officially supports VBR!
+
+version 0.4.1:
+minor bugfix for error messages
+
+version 0.4:
+A and B go to startpoint and endpoint.
+outputfiles are not overwritten anymore
+introduced -a <time> -b <time> for a more handy batching as requested
+introduced -o <prefix> for other outputprefix than "result" as requested
+uses glibc getopt() for better commandline parsing now
+
+version 0.3:
+supports timetable for semiautomatic cutting
+officially supports files > 2GB
+now compiles using $CFLAGS
+
+version 0.2:
+initial public release
+accidentally supports files > 2GB ;-)
+
