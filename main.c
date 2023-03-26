@@ -21,6 +21,8 @@
 
 /* general buffersize */
 #define BUFFER 32000
+#define FN_LEN 8191
+#define TAG_LEN 8191
 
 /* 10 MB for VBR scanning */
 #define SCANAREA 10485759
@@ -1688,9 +1690,9 @@ long seektag(long seekpos)
 void writeconf(void)
 {
 	FILE *conffile;
-	char filename1[8191];
+	char filename1[FN_LEN];
 
-	snprintf(filename1,8190,"%s/%s",getenv("HOME"),".cutmp3rc");
+	snprintf(filename1,FN_LEN-1,"%s/%s",getenv("HOME"),".cutmp3rc");
 	/* check for conffile */
 	if (NULL== (conffile = fopen(filename1,"wb")))
 	{
@@ -1851,9 +1853,9 @@ void readconf(void)
 	FILE *conffile;
 	long confsize=0,pos=0;
 	unsigned char conf[BUFFER];
-	char filename1[8191];
+	char filename1[FN_LEN];
 
-	snprintf(filename1,8190,"%s/%s",getenv("HOME"),".cutmp3rc");      /* get name of conffile */
+	snprintf(filename1,FN_LEN-1,"%s/%s",getenv("HOME"),".cutmp3rc");      /* get name of conffile */
 	if (NULL == (conffile = fopen(filename1,"rb"))) return;      /* check for conffile */
 	fseek(conffile, 0, SEEK_END);
 	confsize=ftell(conffile);         /* size of conffile */
@@ -1952,7 +1954,7 @@ void playfirst(long playpos)
 /* This function saves the selection non-interactively */
 void savesel(char *prefix)
 {
-	char *outname=malloc(8191);
+	char *outname=malloc(FN_LEN);
 	int number=1;
 	long bytesin=0;
 	long endm, startm;
@@ -1977,7 +1979,7 @@ void savesel(char *prefix)
 	/* title known? */
 	if (!usefilename && !no_tags && !forced_prefix && strlen(title)>0)
 	{
-		snprintf(outname,8190, "%s - %s.mp3",artist,title);
+		snprintf(outname,FN_LEN-1, "%s - %s.mp3",artist,title);
 		fp = fopen(outname,"r");
 		if (fp != NULL) /* file exists? */
 		{
@@ -1990,19 +1992,19 @@ void savesel(char *prefix)
 					printf("\n\nFilename already exists 99 times.\nPlease save with tag (press t) and choose another title. \n");
 					return;
 				}
-				snprintf(outname,8190, "%s - %s_%02u.mp3",artist,title,number);
+				snprintf(outname,FN_LEN-1, "%s - %s_%02u.mp3",artist,title,number);
 				fp = fopen(outname,"r");
 			}
 			number=number-overwrite; /* step one number back in case of overwrite mode */
-			if (number==1) snprintf(outname,8190, "%s - %s.mp3",artist,title); /* overwrite file without number */
-			else snprintf(outname,8190, "%s - %s_%02u.mp3",artist,title,number);
+			if (number==1) snprintf(outname,FN_LEN-1, "%s - %s.mp3",artist,title); /* overwrite file without number */
+			else snprintf(outname,FN_LEN-1, "%s - %s_%02u.mp3",artist,title,number);
 		}
 	}
 	else
 	/* title not known */
 	{
 		/* outname = prefix number . suffix */
-		snprintf(outname,8190, "%s%04u.mp3",prefix,number);
+		snprintf(outname,FN_LEN-1, "%s%04u.mp3",prefix,number);
 
 		if (inpoint > filesize)
 		{
@@ -2066,16 +2068,16 @@ void savesel(char *prefix)
 			number++;
 			fclose(fp);
 			if (number>9999) usage("9999 files written. Please choose another prefix via '-o prefix.'");
-			snprintf(outname,8190, "%s%04u.mp3",prefix,number);
+			snprintf(outname,FN_LEN-1, "%s%04u.mp3",prefix,number);
 			fp = fopen(outname,"r");
 		}
 		number=number-overwrite; /* step one number back in case of overwrite mode */
 		if (number==0) number=1;
-		snprintf(outname,8190, "%s%04u.mp3",prefix,number);
+		snprintf(outname,FN_LEN-1, "%s%04u.mp3",prefix,number);
 	}
 
 	/* forced output file name used? */
-	if (forced_file==1) snprintf (outname, 8190, forcedname);
+	if (forced_file==1) snprintf (outname, FN_LEN-1, forcedname);
 
 	/* open outfile */
 // 	if (NULL== (outfile = fopen(outname,"wb"))){perror("\ncutmp3: cannot not write output file! read-only filesystem?");exitseq(10);}
@@ -2152,17 +2154,17 @@ void savesel(char *prefix)
 /* This function saves the selection interactively with ID3 tags */
 void savewithtag(void)
 {
-	char *tempartist=malloc(8191);
-	char *temptitle=malloc(8191);
-	char *tempalbum=malloc(8191);
-	char *tempyear=malloc(8191);
-	char *tempcomment=malloc(8191);
-	char *title1=malloc(8191); /* Title from Tag V1 */
-	char *title2=malloc(8191); /* Title from Tag V2 */
+	char *tempartist=malloc(TAG_LEN);
+	char *temptitle=malloc(TAG_LEN);
+	char *tempalbum=malloc(TAG_LEN);
+	char *tempyear=malloc(TAG_LEN);
+	char *tempcomment=malloc(TAG_LEN);
+	char *title1=malloc(TAG_LEN); /* Title from Tag V1 */
+	char *title2=malloc(TAG_LEN); /* Title from Tag V2 */
 //	int a;
 	int i, tagver=0, hasid3=0, hastag=0, number=1;
-	char outname[8191]="cutmp3.tmp";
-	char outname2[8191]="\0";
+	char outname[FN_LEN]="cutmp3.tmp";
+	char outname2[FN_LEN]="\0";
 	char *newname=outname2;
 	char *tmp;
 	FILE *fp;
@@ -2286,7 +2288,7 @@ void savewithtag(void)
 	/* forced output file name used? */
 	if (forced_file==1)
 	{
-		snprintf (outname, 8190, forcedname);
+		snprintf (outname, FN_LEN-1, forcedname);
 	}
 
 	/*******************/
@@ -2403,7 +2405,7 @@ void savewithtag(void)
 	/********************/
 	/* file rename part */
 	/********************/
-	snprintf(newname,8190, "%s - %s.mp3",artist,title);
+	snprintf(newname,FN_LEN-1, "%s - %s.mp3",artist,title);
 	fp = fopen(newname,"r");
 	if (fp != NULL) /* file exists? */
 	{
@@ -2416,16 +2418,16 @@ void savewithtag(void)
 				printf("\n  File NOT written. Please choose another title.  \n");
 				return;
 			}
-			snprintf(newname,8190, "%s - %s_%02u.mp3",artist,title,number);
+			snprintf(newname,FN_LEN-1, "%s - %s_%02u.mp3",artist,title,number);
 			fp = fopen(newname,"r");
 		}
 		number=number-overwrite; /* step one number back in case of overwrite mode */
-		if (number==1) snprintf(newname,8190, "%s - %s.mp3",artist,title); /* overwrite file without number */
-		else snprintf(newname,8190, "%s - %s_%02u.mp3",artist,title,number);
+		if (number==1) snprintf(newname,FN_LEN-1, "%s - %s.mp3",artist,title); /* overwrite file without number */
+		else snprintf(newname,FN_LEN-1, "%s - %s_%02u.mp3",artist,title,number);
 	}
 
 	/* forced output file name used? Then show correct file name in summary. */
-	if (forced_file==1) snprintf (newname, 8190, forcedname);
+	if (forced_file==1) snprintf (newname, FN_LEN-1, forcedname);
 	/* rename file only if not forced name: **
 	** Only after writing ID3 tag we know the name, so it must be renamed after writing. */
 	else rename(outname, newname);
@@ -2828,9 +2830,8 @@ int main(int argc, char *argv[])
 	int b,c,d,char1,showinfo=0,rawmode=0,fix_channels=0;
 	long pos, startpos;
 	double ft_factor=2;
-	char *tablename=malloc(8191);
-	char *prefix=malloc(8191);
-	char pprefix[8191];
+	char *tablename=malloc(FN_LEN);
+	char *prefix=malloc(FN_LEN);
 	void (*play)(long playpos) = playsel;
 
 /* ------------------------------------------------------------------------- */
@@ -2912,7 +2913,7 @@ int main(int argc, char *argv[])
 					rawmode=1;
 					break;
 				case 'o':
-					if (optarg!=0) snprintf(prefix,8190,optarg);
+					if (optarg!=0) snprintf(prefix,FN_LEN-1,optarg);
 //					else usage("Error: missing outputprefix");
 					forced_prefix=1;
 					break;
@@ -2938,8 +2939,11 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (strlen(prefix)==0) prefix="result";
-	if (usefilename) {strncpy(pprefix,filename,strlen(filename)-4); prefix=pprefix;}
+	if (usefilename) {
+		strncpy(prefix,filename,FN_LEN-1);
+		prefix[strlen(filename)-4]=0;
+	}
+	if (prefix[0]==0) strcpy(prefix,"result");
 
 	if (userin==0 && userout!=0) usage("ERROR: missing inpoint");
 	if (userin!=0 && userout==0) usage("ERROR: missing outpoint");

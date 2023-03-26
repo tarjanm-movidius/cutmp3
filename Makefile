@@ -9,13 +9,13 @@ CFLAGS?=-Wall
 
 all:
 	@echo -e "\n\n*** You need readline-devel, ncurses-devel or similar to compile ${NAME} ***\n*** Maybe you want to try the binary on compile failures? ***\n\n"
-	gcc -O ${CFLAGS} -c mpglib.c
-	gcc -O ${CFLAGS} -c main.c
+	gcc -O2 ${CFLAGS} -c mpglib.c
+	gcc -O2 ${CFLAGS} -c main.c
 	gcc main.o mpglib.o -o ${NAME} -lm -lreadline -lncurses
 
 i386:
-	gcc -Wall -O -c mpglib.c
-	gcc -Wall -O -c main.c
+	gcc -Wall -O2 -c mpglib.c
+	gcc -Wall -O2 -c main.c
 	gcc main.o mpglib.o -o ${NAME} -lm -lreadline -lncurses
 
 clean:
