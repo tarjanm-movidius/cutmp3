@@ -1,4 +1,7 @@
 
+version 2.1:
+Layer 2 (MP2 file) support
+
 version 2.0.3:
 disabled file opening when writing to STDOUT. Patch by Grégoire Rocher.
 

@@ -9,13 +9,14 @@
 
 /*
 	main.c   Cut MP3s framewise, VBR supported!
+	MP2 files should work since 2.0.4, as well!
 	The code is somewhat ugly and unsafe, sorry! At least it is fast :-)
 	(c) Jochen Puchalla 2003-2011  <mail@puchalla-online.de>
 */
 
 #include "cutmp3.h"
 
-#define VERSION "2.0.3"
+#define VERSION "2.1"
 #define YEAR "2011"
 
 /* general buffersize */
@@ -220,6 +221,13 @@ int channels(unsigned char fourthbyte)
 }
 
 
+int is_header(int secondbyte, int thirdbyte, int fourthbyte)
+{
+	if (sampfreq(secondbyte,thirdbyte)==fix_sampfreq && framesize(secondbyte,thirdbyte,fourthbyte)!=1) return 1;
+	else return 0;
+}
+
+
 /* isheader() is not used any longer! I keep it for historical reasons. */
 int isheader(int secondbyte, int thirdbyte, int fourthbyte)
 {
@@ -236,7 +244,6 @@ int isheader(int secondbyte, int thirdbyte, int fourthbyte)
 	  not 01  0  234
 	  not 01  1  235
 	*/
-
 
 	/* When we already know about some things: */
 	if (fix_secondbyte!=0 && secondbyte!=fix_secondbyte) return 2;
@@ -257,48 +264,139 @@ int bitrate(unsigned char secondbyte,unsigned char thirdbyte,unsigned char fourt
 	unsigned char bitratenumber;
 
 	bitratenumber = thirdbyte>>4;
-	if (mpeg(secondbyte)==1) /* MPEG1 */
+
+	if(layer(secondbyte)==3) /* MPEG Layer3 */
 	{
-		switch (bitratenumber)
+		if (mpeg(secondbyte)==1) /* MPEG1 */
 		{
-			case 1: return 32;
-			case 2: return 40;
-			case 3: return 48;
-			case 4: return 56;
-			case 5: return 64;
-			case 6: return 80;
-			case 7: return 96;
-			case 8: return 112;
-			case 9: return 128;
-			case 10: return 160;
-			case 11: return 192;
-			case 12: return 224;
-			case 13: return 256;
-			case 14: return 320;
+			switch (bitratenumber)
+			{
+				case 1: return 32;
+				case 2: return 40;
+				case 3: return 48;
+				case 4: return 56;
+				case 5: return 64;
+				case 6: return 80;
+				case 7: return 96;
+				case 8: return 112;
+				case 9: return 128;
+				case 10: return 160;
+				case 11: return 192;
+				case 12: return 224;
+				case 13: return 256;
+				case 14: return 320;
+			}
+		}
+		if (mpeg(secondbyte)==3 || mpeg(secondbyte)==2) /* MPEG2.5, MPEG2 */
+		{
+			switch (bitratenumber)
+			{
+				case 1: return 8;
+				case 2: return 16;
+				case 3: return 24;
+				case 4: return 32;
+				case 5: return 40;
+				case 6: return 48;
+				case 7: return 56;
+				case 8: return 64;
+				case 9: return 80;
+				case 10: return 96;
+				case 11: return 112;
+				case 12: return 128;
+				case 13: return 144;
+				case 14: return 160;
+			}
 		}
 	}
-	if (mpeg(secondbyte)==3 || mpeg(secondbyte)==2) /* MPEG2.5, MPEG2 */
+
+	if(layer(secondbyte)==2) /* MPEG Layer2 */
 	{
-		switch (bitratenumber)
+		if (mpeg(secondbyte)==1) /* MPEG1 */
 		{
-			case 1: return 8;
-			case 2: return 16;
-			case 3: return 24;
-			case 4: return 32;
-			case 5: return 40;
-			case 6: return 48;
-			case 7: return 56;
-			case 8: return 64;
-			case 9: return 80;
-			case 10: return 96;
-			case 11: return 112;
-			case 12: return 128;
-			case 13: return 144;
-			case 14: return 160;
+			switch (bitratenumber)
+			{
+				case 1: return 32;
+				case 2: return 48;
+				case 3: return 56;
+				case 4: return 64;
+				case 5: return 80;
+				case 6: return 96;
+				case 7: return 112;
+				case 8: return 128;
+				case 9: return 160;
+				case 10: return 192;
+				case 11: return 224;
+				case 12: return 256;
+				case 13: return 320;
+				case 14: return 384;
+			}
+		}
+		if (mpeg(secondbyte)==3 || mpeg(secondbyte)==2) /* MPEG2.5, MPEG2 */
+		{
+			switch (bitratenumber)
+			{
+				case 1: return 8;
+				case 2: return 16;
+				case 3: return 24;
+				case 4: return 32;
+				case 5: return 40;
+				case 6: return 48;
+				case 7: return 56;
+				case 8: return 64;
+				case 9: return 80;
+				case 10: return 96;
+				case 11: return 112;
+				case 12: return 128;
+				case 13: return 144;
+				case 14: return 160;
+			}
 		}
 	}
+
+	if(layer(secondbyte)==1) /* MPEG Layer1 */
+	{
+		if (mpeg(secondbyte)==1) /* MPEG1 */
+		{
+			switch (bitratenumber)
+			{
+				case 1: return 32;
+				case 2: return 64;
+				case 3: return 96;
+				case 4: return 128;
+				case 5: return 160;
+				case 6: return 192;
+				case 7: return 224;
+				case 8: return 256;
+				case 9: return 288;
+				case 10: return 320;
+				case 11: return 352;
+				case 12: return 384;
+				case 13: return 416;
+				case 14: return 448;
+			}
+		}
+	}
+
 	/* In case of an error, bitrate=1 is returned */
 	return 1;
+}
+
+
+int layer(unsigned char secondbyte)
+{
+	unsigned char layernumber;
+
+	secondbyte = secondbyte<<5;
+	layernumber = secondbyte>>6;
+	switch (layernumber)
+	{
+		case 1: return 3;
+		case 2: return 2;
+// 		case 2: {printf("\nFile is an MP2, not am MP3.\n"); exitseq(99);}
+		case 3: return 1;
+	}
+	/* In case of an error, layer=0 is returned */
+	return 0;
 }
 
 
@@ -321,14 +419,6 @@ int framesize(unsigned char secondbyte,unsigned char thirdbyte,unsigned char fou
 	if ((br!=1) && (sf!=1)) return (mfactor*72000*br/sf)+paddingbit(thirdbyte);
 	else return 1;
 }
-
-
-int is_header(int secondbyte, int thirdbyte, int fourthbyte)
-{
-	if (sampfreq(secondbyte,thirdbyte)==fix_sampfreq && framesize(secondbyte,thirdbyte,fourthbyte)!=1) return 1;
-	else return 0;
-}
-
 
 /* find next frame at seekpos */
 long nextframe(long seekpos)
@@ -2746,8 +2836,8 @@ void showfileinfo(int rawmode, int fix_channels)
 	printf("\n\n* Properties of \"%s\":\n* \n",filename);
 	if (audiobegin != 0) printf("* Audio data starts at %u Bytes\n",audiobegin);
 	printf("* Size of first frame is %u Bytes\n",framesize(begin[1],begin[2],begin[3]));
-	if (mpeg(begin[1])==3) printf("* File is MPEG2.5-Layer3\n");
-	else printf("*\n* Format is MPEG%u-Layer3\n",mpeg(begin[1]));
+	if (mpeg(begin[1])==3) printf("* File is MPEG2.5-Layer%u\n",layer(begin[1]));
+	else printf("*\n* Format is MPEG%u-Layer%u\n",mpeg(begin[1]),layer(begin[1]));
 	if (vbr==0) printf("*           %.0f kBit/sec\n",avbr);
 	else printf("*           %.2f kBit/sec (VBR average)\n",avbr);
 	printf("*           %u Hz ",sampfreq(begin[1],begin[2]));

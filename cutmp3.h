@@ -21,6 +21,7 @@ void usage(char *text);
 void help(void);
 
 int mpeg(unsigned char secondbyte);
+int layer(unsigned char secondbyte);
 int sampfreq(unsigned char secondbyte, unsigned char thirdbyte);
 int channelmode(unsigned char fourthbyte);
 int channels(unsigned char fourthbyte);
