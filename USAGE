@@ -2,7 +2,7 @@
 By calling "cutmp3" you will get this:
 
 
-cutmp3  version 2.0.2
+cutmp3  version 2.0.3
 
 Usage:  cutmp3 -i file.mp3 [-a inpoint] [-b outpoint] [-f timetable]
                            [-o outputprefix] [-e] [-c] [-C] [-q]

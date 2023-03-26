@@ -1,4 +1,7 @@
 
+version 2.0.3:
+disabled file opening when writing to STDOUT. Patch by Grégoire Rocher.
+
 version 2.0.2:
 Current position is shown in prompt
 'R' toggles playing from / up to location

@@ -10,13 +10,13 @@
 /*
 	main.c   Cut MP3s framewise, VBR supported!
 	The code is somewhat ugly and unsafe, sorry! At least it is fast :-)
-	(c) Jochen Puchalla 2003-2009  <mail@puchalla-online.de>
+	(c) Jochen Puchalla 2003-2011  <mail@puchalla-online.de>
 */
 
 #include "cutmp3.h"
 
-#define VERSION "2.0.2"
-#define YEAR "2009"
+#define VERSION "2.0.3"
+#define YEAR "2011"
 
 /* general buffersize */
 #define BUFFER 32767
@@ -2043,7 +2043,8 @@ void savesel(char *prefix)
 	if (forced_file==1) snprintf (outname, 8190, forcedname);
 
 	/* open outfile */
-	if (NULL== (outfile = fopen(outname,"wb"))){perror("\ncutmp3: cannot not write output file! read-only filesystem?");exitseq(10);}
+// 	if (NULL== (outfile = fopen(outname,"wb"))){perror("\ncutmp3: cannot not write output file! read-only filesystem?");exitseq(10);}
+	if (stdoutwrite!=1 && NULL== (outfile = fopen(outname,"wb"))){perror("\ncutmp3: cannot not write output file! read-only filesystem?");exitseq(10);}
 
 	/* copy id3 in case of -c switch */
 	if (copytags==1 && importid3(0)>0)
@@ -2051,6 +2052,8 @@ void savesel(char *prefix)
 // 		id3file = fopen("/tmp/id3v2tag","rb");
 		fseek(id3file2, 0, SEEK_SET);
 		while( (a=fgetc(id3file2)) != EOF ) fputc(a,outfile);
+		if (stdoutwrite==1) putchar(a);
+		else fputc(a,outfile);
 // 		fclose(id3file);
 	}
 
@@ -2077,9 +2080,9 @@ void savesel(char *prefix)
 	}
 
 	/* close outfile */
-	fclose(outfile);
+	if (stdoutwrite!=1) fclose(outfile);
 
- 	if(stdoutwrite==1) /* write to STDOUT, return without printing messages */
+ 	if (stdoutwrite==1) /* write to STDOUT, return without printing messages */
  	{
 		overwrite=0;
 		zaptitle(); /* erase title name after saving */
