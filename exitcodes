@@ -1,0 +1,12 @@
+0 OK
+1 missing filename
+2 cannot open inputfile
+3 cannot open timetable
+4 file has less than two valid frames
+5 writing to STDOUT in interactive mode is a bad idea
+6 failed writing /tmp/volume.mp3
+7 failed writing /tmp/id3v2tag
+8 failed writing /tmp/id3v1tag
+9 failed writing /tmp/cut.mp3
+10 failed writing $outname
+11 failed writing $tablename

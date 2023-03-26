@@ -3,8 +3,6 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-#include <malloc.h>
-
 #include <termios.h>
 #include <signal.h>
 #include <unistd.h>
@@ -65,12 +63,12 @@ void readconf(void);
 void playsel(long int playpos);
 void playfirst(long int playpos);
 
-void savesel(void);
+//void savesel(void);
 void savewithtag(void);
 
-void cutexact(void);
+//void cutexact(void);
 
-void writetable(void);
-void cutfromtable(void);
+//void writetable(void);
+//void cutfromtable(void);
 
 void showfileinfo(int rawmode, int fix_channels);

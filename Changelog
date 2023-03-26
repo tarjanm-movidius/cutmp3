@@ -1,4 +1,45 @@
 
+version 2.0:
+added live time
+pressing 'l' toggles live time
+always uses prefix from "-o" switch now
+
+version 1.9.5:
+fixed 'N' and 'M' button commands
+manpage update
+
+version 1.9.4:
+Pressing M enlarges playback by 1 second
+Pressing N shortens playback by 1 second
+no maximum silence length for -s0
+fixed display for negative and too big time values
+better error messages
+
+version 1.9.2:
+small fix for timetable cutting with negative values
+added -s option for silence seeking
+Documentation updates
+
+version 1.9.1:
+tag copying can be turned off by the -C switch, patch by Vadim Druzhin
+Makefile patch for MANDIR by Vadim Druzhin
+
+version 1.9:
+enabled writing output file to other partition than source file
+added checks before writing files
+code cleanups and fixes
+
+version 1.8.6:
+added support for writing data to STDOUT
+bugfix in saving with tag
+better konqueror servicemenu install
+
+version 1.8.5:
+added ID3V2.0 support
+When using -a -b or -f, metadata will be copied with -c
+Now manpage is really installed during "make install"
+removed wrong free()
+
 version 1.8.4:
 added manpage thanks to Marc O. Gloor
 

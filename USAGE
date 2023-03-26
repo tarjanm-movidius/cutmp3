@@ -2,30 +2,38 @@
 By calling "cutmp3" you will get this:
 
 
-cutmp3  version 1.8.4
+cutmp3  version 2.0
 
-Usage:  cutmp3 -i file.mp3 [-a inpoint] [-b outpoint] [-f timetable] [-o outputprefix] [-e] [-q]
+Usage:  cutmp3 -i file.mp3 [-a inpoint] [-b outpoint] [-f timetable]
+                           [-o outputprefix] [-e] [-c] [-C] [-q]
 
-        cutmp3 -i file.mp3 -a 0:37 -b 3:57  copies valid data from 0:37 to 3:57
-        cutmp3 -i file.mp3 -f timetable     copies valid data described in timetable
-        cutmp3 -i file.mp3 -o song          writes the output to song0001.mp3, song0002.mp3,...
-        cutmp3 -i file.mp3 -O song.mp3      writes the output to song.mp3
-        cutmp3 -i file.mp3 -d 2             use second sound card
-        cutmp3 -I file.mp3 [-F]             prints file information [in raw mode]
+  cutmp3 -i file.mp3 -a 0:37 -b 3:57  copies valid data from 0:37 to 3:57
+  cutmp3 -i file.mp3 -f timetable     copies valid data described in timetable
+  cutmp3 -i file.mp3 -o song          writes the output to song0001.mp3, song0002.mp3,...
+  cutmp3 -i file.mp3 -O song.mp3      writes the output to song.mp3
+  cutmp3 -i file.mp3 -O -             writes the output to STDOUT
+  cutmp3 -i file.mp3 -d 2             use second sound card
+  cutmp3 -i file.mp3 -s 0             no maximum silence length
+  cutmp3 -I file.mp3 [-F]             prints file information [in raw mode]
 
 So this means you have to type
 cutmp3 -i file.mp3
-to edit the file named "file.mp3" interactively:
+to edit the file named "file.mp3" interactively.
+At every position the sound is being played for 1 second.
+'r' plays it again.
 With the keys 12345 you can rewind, with the keys 67890 you can go forward.
 '0' means 10mins forward, '9' is 1min forward, '8' is 10secs forward, '7' is 1sec forward
 and '6' is 1/10sec forward. Keys '1' to '5' go symmetrically back (so '1' means 10mins back).
 When you are at the starting position of your part of interest, press the key 'a'.
 When you are at the last position of your part of interest, press the key 'b' (What you hear
-after typing 'b' will then be the last second inside the new file).
+after pressing 'b' will then be the last second inside the new file).
 By typing 's' the resulting file will be written to result0001.mp3. If it already exists,
 cutmp3 will increase the number to result0002.mp3, result0003.mp3 and so on.
 
 -e  switches on exact searching mode, useful for VBR files (-a -b and -f  always use the exact mode)
+-c  copies metadata in non-interactive mode
+-C  ignores given metadata for the output filename in non-interactive mode
+-s  changes the maximum silence length factor, 0 means infinity
 -q  switches on quiet mode, cutmp3 won't make any sound, useful for debugging
     and piped commands like:  "echo 7a9bsq | cutmp3 -i file.mp3"
 
@@ -36,7 +44,9 @@ By default the silence should last for 1000 milliseconds, which is one second,
 and the maximum volume during this second is the minimum: 1 (whatever that is in dB).
 You can change
 - the length of the silence by pressing 'n' or 'm' and
+- the length of playback by pressing 'N' or 'M' and
 - the maximum volume during this silence by pressing '+' or '-'.
+These values will be saved to ~/.cutmp3rc by pressing 'S'.
 
 You can seek to the next ID3 tag by pressing 'T'. This is useful in
 case someone has merged several mp3s into one file without removing the ID3-tags.

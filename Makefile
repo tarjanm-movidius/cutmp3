@@ -1,5 +1,5 @@
 NAME=cutmp3
-VERSION=1.8.4
+VERSION=2.0
 PREFIX=/usr
 BINDIR=${PREFIX}/bin
 DATADIR=${PREFIX}/share
@@ -25,10 +25,15 @@ install:
 	install -d ${BINDIR}
 	install ${NAME} ${BINDIR}
 	if [ ! -z "${KDEDIR}" ]; then install -m 644 ${NAME}.desktop ${KDEDIR}/share/apps/konqueror/servicemenus; fi
-	install -d ${MANDIR}
-	install -m 644 cutmp3.1.gz ${MANDIR}
+	if [ -d /usr/share/apps/konqueror/servicemenus ]; then install -m 644 ${NAME}.desktop /usr/share/apps/konqueror/servicemenus; fi
+	if [ -d /opt/kde/share/apps/konqueror/servicemenus ]; then install -m 644 ${NAME}.desktop /opt/kde/share/apps/konqueror/servicemenus; fi
+	if [ -d /opt/kde3/share/apps/konqueror/servicemenus ]; then install -m 644 ${NAME}.desktop /opt/kde3/share/apps/konqueror/servicemenus; fi
 	install -d ${DOCDIR}/${NAME}
 	install -m 644 README* USAGE ${DOCDIR}/${NAME}
+	install -d ${MANDIR}
+	gzip ${NAME}.1
+	install -m 644 ${NAME}.1.gz ${MANDIR}
+	gunzip ${NAME}.1.gz
 
 uninstall:
 	rm -f ${BINDIR}/${NAME}

@@ -1,4 +1,4 @@
-.TH CUTMP3 1 "Nov 11,  2005" "cutmp3 1.8.3" "Utility Commands"
+.TH CUTMP3 1 "Jun 28, 2009" "cutmp3 2.0" "Utility Commands"
 .SH NAME
 cutmp3 \- a fast and leightweight mp3 editor
 .SH SYNOPSIS
@@ -11,13 +11,15 @@ cutmp3 \- a fast and leightweight mp3 editor
 [-o \fI<output_prefix>\fP]
 [-I \fI<file> [-F]\fP]
 [-d 2]
+[-s \fI<factor>\fP]
 -e
+-c
 -q
 .SH DESCRIPTION
-Cutmp3 is a small and fast command line MP3 editor. It lets you select sections 
-of an MP3 interactively or via a timetable and save them to separate files 
-without quality loss. It uses mpg123 for playback and works with VBR files and 
-even with files bigger than 2GB. Other features are configurable silence 
+Cutmp3 is a small and fast command line MP3 editor. It lets you select sections
+of an MP3 interactively or via a timetable and save them to separate files
+without quality loss. It uses mpg123 for playback and works with VBR files and
+even with files bigger than 2GB. Other features are configurable silence
 seeking and ID3 tag seeking, which are useful for concatenated mp3s.
 
 .SH OPTIONS
@@ -47,7 +49,10 @@ The timetable must have the following format:
 .br
 01:01.34 02:39.78
 .br
+1:0 -0:05
+.br
 
+Negative values mean distance from the end of file.
 Note that the options [-a] and [-b] override a given timetable.
 .IP "-e exact searching mode"
 Switch on exact searching mode, useful for VBR files.
@@ -56,6 +61,12 @@ Note that [-a] [-b] and [-f] use exact mode as default.
 .IP "-q quiet mode"
 Switch on quiet mode, cutmp3 won't make any sound, useful for debugging
 and commands using a pipe like: "echo 7a9bsq | cutmp3 -i file.mp3"
+.IP "-c copy metadata"
+Copies metadata in non-interactive mode. Useful to keep ID3 tags when
+using -a -b or -f.
+.IP "-s maximum silence length factor"
+Normally cutmp3 stops when the silence found is longer than 15 times
+the minimum silence length. [-s] changes this factor. 0 means infinity.
 .IP "-d 2"
 use the second soundcard (/dev/dsp1)
 
@@ -64,20 +75,22 @@ rewind with the following keys [1/2/3/4/5]
 .br
 move forward with the following keys [6/7/8/9/0]
 .br
-[0] means 10mins forward, [9] is 1min forward, [8] is 10secs forward, [7] 
-is 1sec forward and [6] is 1/10sec forward. Keys [1] to [5] go symmetrically 
-back (so [1] means 10mins back). For highest precision [,] goes back one frame 
-and [.] goes one frame forward. After any of these keys you will hear the 
-sound at this position for one second. When you are at the starting position of 
-your part of interest, press the key [a]. When you are at the last position 
-of your part of interest, press the key [b] (What you hear after [b] will then 
-be the last second inside the new file). By pressing [s] the resulting 
-file will be written to result0001.mp3. If it already exists, cutmp3 will 
+[0] means 10mins forward, [9] is 1min forward, [8] is 10secs forward, [7]
+is 1sec forward and [6] is 1/10sec forward. Keys [1] to [5] go symmetrically
+back (so [1] means 10mins back). For highest precision [,] goes back one frame
+and [.] goes one frame forward. After any of these keys you will hear the
+sound at this position for one second. When you are at the starting position of
+your part of interest, press the key [a]. When you are at the last position
+of your part of interest, press the key [b] (What you hear after [b] will then
+be the last second inside the new file). By pressing [s] the resulting
+file will be written to result0001.mp3. If it already exists, cutmp3 will
 increase the number to result0002.mp3, result0003.mp3 and so on.
 
+You can change the length of playback by pressing [N] and [M].
+
 You can seek to the end of the next silence by pressing [p] (for pause)
-or to its beginning by pressing [P]. By default the silence should last for 
-1000 milliseconds, which is one second, and the maximum volume during this 
+or to its beginning by pressing [P]. By default the silence should last for
+1000 milliseconds, which is one second, and the maximum volume during this
 second is the minimum: 1 (whatever that is in dB).
 
 You can change:
@@ -85,6 +98,8 @@ You can change:
 - the length of the silence by pressing [n] or [m] and
 .br
 - the maximum volume during this silence by pressing [+] or [-].
+
+These values will be saved to ~/.cutmp3rc by pressing [S].
 
 You can seek to the next ID3 tag by pressing [T]. This is useful in case
 someone has merged several mp3s into one file without removing the ID3-tags.
@@ -94,30 +109,30 @@ For other useful keycodes type [h] in interactive mode.
 Please note that cutmp3 only accepts one inputfile, so using wildcards like [?]
 or [*] in filenames will result in editing only the first file that matches.
 .SH EXAMPLES
-1) The resulting files will be written to blah0001.mp3, blah0002.mp3, blah0003.mp3 
+1) The resulting files will be written to blah0001.mp3, blah0002.mp3, blah0003.mp3
 and so on:
 
     cutmp3 -i file.mp3 -o blah
 
-2) If you only want to cut a file once and you know the times for start and the 
+2) If you only want to cut a file once and you know the times for start and the
 end, you type:
 
     cutmp3 -i file.mp3 -a 0:37 -b 1:25
 
-and cutmp3 will write the passage of file.mp3 starting at 0:37 and ending at 
+and cutmp3 will write the passage of file.mp3 starting at 0:37 and ending at
 1:25 to blah01.mp3
 
-3) If you want to cut a file more often, you need to create a file which 
+3) If you want to cut a file more often, you need to create a file which
 contains a timetable and type (Please read README.timetable for details):
 
     cutmp3 -i file.mp3 -f name_of_the_timetablefile
 
-4) Only print total number of frames, sampling frequency, number of channels, 
+4) Only print total number of frames, sampling frequency, number of channels,
 average bitrate, MPEG version and total time in milliseconds, in this order:
 
     cutmp3 -F -I file.mp3
 
-5) If you want to clean an MP3 from any data that is not sound, just use 
+5) If you want to clean an MP3 from any data that is not sound, just use
 (Cutting in interactive mode does _not_ remove invalid data!):
 
     cutmp3 -i infile.mp3 -a 0:0 -b 99999:0

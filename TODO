@@ -1,4 +1,15 @@
-tell me :-)
+fading maybe
 
-fading
 remove /tmp things
+
+remove VBR file length info
+  TLEN
+   The 'Length' frame contains the length of the audio file in
+   milliseconds, represented as a numeric string.
+-> copyid3()
+
+ID3V2
+
+Xing header
+
+mktemp() mkstemp()
