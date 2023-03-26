@@ -11,13 +11,13 @@
 	main.c   Cut MP3s framewise, VBR supported!
 	MP2 files should work since 2.0.4, as well!
 	The code is somewhat ugly and unsafe, sorry! At least it is fast :-)
-	(c) Jochen Puchalla 2003-2011  <mail@puchalla-online.de>
+	(c) Jochen Puchalla 2003-2014  <mail@puchalla-online.de>
 */
 
 #include "cutmp3.h"
 
-#define VERSION "2.1.1"
-#define YEAR "2013"
+#define VERSION "2.1.2"
+#define YEAR "2014"
 
 /* general buffersize */
 #define BUFFER 32767
@@ -1871,8 +1871,14 @@ void playsel(long int playpos)
 	FILE *outfile;
 	char command[1023];
 	char playname[16] = "/tmp/playXXXXXX";
+	static char prev_playname[16] = "";
 	int fd=-1;
 	int i=0;
+
+	if (prev_playname[0] != 0) {
+		// printf("remove file %s\n", prev_playname); /* debug */
+		remove(prev_playname); /* delete tempfile */
+	}
 
 	if (!mute)
 	{
@@ -1885,6 +1891,8 @@ void playsel(long int playpos)
 		if ((fd = mkstemp(playname)) == -1 || (NULL== (outfile = fdopen(fd, "w+b"))) )
 		{
 			perror("\ncutmp3: failed writing temporary mp3 in /tmp");exitseq(9);
+		} else {
+			strncpy(prev_playname, playname, 16);
 		}
 		fseek(mp3file, playpos, SEEK_SET);
 		for (bytesin=0; bytesin < playsize; bytesin++) fputc(getc(mp3file),outfile);
@@ -1937,10 +1945,6 @@ void playsel(long int playpos)
 		else
 		printf("  position is %3u:%05.2f / ~%u:%02.0f  (~%u:%02i before startpoint) \n",showmins(pos-audiobegin),showsecs(pos-audiobegin),totalmins,totalsecs,showmins(inpoint-playpos),intsecs(inpoint-playpos));
 	}
-
-	if (!mute && livetime==0) { usleep(50000); } /* wait some time to start playing the file */
- 	remove(playname); /* delete tempfile */
-
 }
 
 
@@ -3310,7 +3314,7 @@ int main(int argc, char *argv[])
 		}
 		if (c == 'm')
 		{
-			silencelength=silencelength*1.1;
+			silencelength=silencelength*1.101;
 			if (silencelength>10000 && silfactor !=0) silencelength=10000;
 			printf("  length of silence is %u milliseconds \n",silencelength);
 		}

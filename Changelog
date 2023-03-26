@@ -1,4 +1,7 @@
 
+version 2.1.2:
+old tempfile is removed just before playing new tempfile. Patch by Till Maas.
+
 version 2.1.1:
 Small time display fix
 Reading ID3V2 fixed
