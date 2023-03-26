@@ -15,7 +15,7 @@
 
 #include "cutmp3.h"
 
-#define VERSION "2.0"
+#define VERSION "2.0.1"
 #define YEAR "2009"
 
 /* general buffersize */
@@ -26,7 +26,7 @@
 	unsigned int silencelength=1000, silvol=1;
 
 	FILE *mp3file, *timefile;
-	unsigned char begin[BUFFER], ttable[BUFFER];
+	unsigned char begin[BUFFER];
 	long filesize, dataend, inpoint, outpoint;
 	long startmins, endmins;
 	double startsecs, endsecs;
@@ -44,8 +44,6 @@
 	char *userin;
 	char *userout;
 
-//	char *template="/tmp/testXXXXXX";
-
 	int livetime=1;
 	int exactmode=0, mute=0, forced_file=0, overwrite=0, forced_prefix=0;
 	int copytags=0, nonint=0;
@@ -57,7 +55,6 @@
 
 	int card=1;
 	signed int genre=-1;
-	int hastable=0;
 
 	char artist[255]="";
 	char album[255]="";
@@ -67,15 +64,29 @@
 	or "artist - title.mp3", so leave it empty here! */
 	char title[255]="";
 
+	int hastable=0;
+	unsigned char ttable[BUFFER];
+	FILE *tblfile;
+	char tblname[17] = "/tmp/tableXXXXXX";
+
+	FILE *id3file1;
+	FILE *id3file2;
+	char id3name1[15] = "/tmp/id1XXXXXX";
+	char id3name2[15] = "/tmp/id2XXXXXX";
+	int fd1=-1;
+	int fd2=-1;
+
+	FILE *logfile;
+	char logname[21] = "/tmp/mpg123logXXXXXX";
+	int fdlog=-1;
+
 	int debug=0;
 
 void exitseq(int foobar)
 {
-	remove("/tmp/cut.mp3");
-	remove("/tmp/volume.mp3");
-	remove("/tmp/id3v2tag");
-	remove("/tmp/id3v1tag");
-	remove("/tmp/timetable");
+ 	remove(id3name1);
+ 	remove(id3name2);
+ 	remove(logname);
 
 	exit(foobar);  /* now really exit */
 }
@@ -668,10 +679,13 @@ long get_total_frames(void)
 unsigned int volume(long playpos)
 {
 	unsigned char copy[BUFFER+5];
-	FILE *volfile;
 	long get_maxframe(FILE * zin);
 	unsigned int level, framenum=4;
 	int i, pos, frsize;
+
+	FILE *volfile;
+	char volname[15] = "/tmp/volXXXXXX";
+	int fd=-1;
 
 //	printf("  volume()");
 
@@ -696,8 +710,10 @@ unsigned int volume(long playpos)
 	}
 
 	/* Copy framenum+2 frames to outfile */
-//	system(">/tmp/volume.mp3");
-	if (NULL== (volfile = fopen("/tmp/volume.mp3","w+b"))) {perror("\ncutmp3: failed writing /tmp/volume.mp3");exitseq(6);} /* open temp.vol.file read-writable zero length */
+	if ((fd = mkstemp(volname)) == -1 || (NULL== (volfile = fdopen(fd, "w+b"))) )
+	{
+		perror("\ncutmp3: failed writing temporary volume mp3 in /tmp");exitseq(6); /* open temp.vol.file read-writable zero length */
+	}
 	pos=0;
 	for (framecount=0; framecount < framenum+2 ; framecount++)
 	{
@@ -730,8 +746,7 @@ unsigned int volume(long playpos)
 	if (level>65535) level=65535;
 	ExitMP3();
 	fclose(volfile);
-	remove("/tmp/volume.mp3");
-//	free(volfile);
+	remove(volname);
 	return level;
 }
 
@@ -976,15 +991,15 @@ ID3 V1 Implementation
 long importid3(long seekpos)
 {
 	long int length=0, pos=0, i=0;
-	char id3name[32]="/tmp/id3v2tag";
+// 	char id3name[32]="/tmp/id3v2tag";
 	int size=0, hasexthdr=0, footer=0;
-	FILE *id3file;
+// 	FILE *id3file;
 	unsigned char a,b,c,d;
 	int majorv, minorv;
 
 //	printf("\nimportid3 at %li\n",seekpos);
 
-	remove("/tmp/id3v2tag");
+// 	remove("/tmp/id3v2tag");
 
 	fseek(mp3file, seekpos, SEEK_SET);
 	length=skipid3v2(seekpos)-seekpos; /* also checks if there is ID3 V2 */
@@ -999,26 +1014,28 @@ long importid3(long seekpos)
 	artist[0]='\0';
 	comment[0]='\0';
 
-	id3file = fopen(id3name,"rb");
-	for (i=0 ; i < 3 ; i++) {fgetc(id3file); pos++;} /* skip ID3 */
-	majorv=fgetc(id3file); pos++;
-	minorv=fgetc(id3file); pos++;
-	a=b=fgetc(id3file); pos++; /* flags byte */
+// 	id3file2 = fopen(id3name,"rb");
+	fseek(id3file2, 0, SEEK_SET);
+	for (i=0 ; i < 3 ; i++) {fgetc(id3file2); pos++;} /* skip ID3 */
+	majorv=fgetc(id3file2); pos++;
+	minorv=fgetc(id3file2); pos++;
+	a=b=fgetc(id3file2); pos++; /* flags byte */
 //	printf(" flags byte=%u ",a);
-	if(majorv!=2) {fclose(id3file); return 0;} /* only V2 */
+// 	if(majorv!=2) {fclose(id3file2); return 0;} /* only V2 */
+	if(majorv!=2) return 0; /* only V2 */
 	if(minorv>=3) hasexthdr=(a<<1)>>7; /* has extended header? */
 	if(minorv==4) footer=((b<<3)>>7)*10; /* has footer? */
-	for (i=0 ; i < 4 ; i++) {fgetc(id3file); pos++;} /* skip tag length info */
+	for (i=0 ; i < 4 ; i++) {fgetc(id3file2); pos++;} /* skip tag length info */
 	if (hasexthdr)
 	{
 		/* skip ext header */
-		a=fgetc(id3file);
-		b=fgetc(id3file);
-		c=fgetc(id3file);
-		d=fgetc(id3file);
+		a=fgetc(id3file2);
+		b=fgetc(id3file2);
+		c=fgetc(id3file2);
+		d=fgetc(id3file2);
 		pos=pos+4;
 		size=a*128*128*128+b*128*128+c*128+d;
-		for (i=0 ; i < size-4 ; i++) {fgetc(id3file); pos++;}
+		for (i=0 ; i < size-4 ; i++) {fgetc(id3file2); pos++;}
 //		printf("\nhasexthdr of size=%i\n",size);
 	}
 
@@ -1028,110 +1045,110 @@ long importid3(long seekpos)
 		{
 	//		printf("\nloopstart pos=%li length=%li footer=%i\n",pos,length,footer);
 			if (pos+4>=length-footer) break;
-			a=fgetc(id3file);
-			b=fgetc(id3file);
-			c=fgetc(id3file);
-			d=fgetc(id3file);
+			a=fgetc(id3file2);
+			b=fgetc(id3file2);
+			c=fgetc(id3file2);
+			d=fgetc(id3file2);
 			pos=pos+4;
 	//		printf("\nloopstart: a=%c b=%c c=%c d=%c\n",a,b,c,d);
 
 			if (a==0 && b==0 && c==0 && d==0) break; /* is padding at the end of the tag */
 			else if (a=='T' && b=='I' && c=='T' && d=='2') /* read title */
 			{
-				a=fgetc(id3file);
-				b=fgetc(id3file);
-				c=fgetc(id3file);
-				d=fgetc(id3file);
-				fgetc(id3file);
-				fgetc(id3file); /* skip 2 flag bytes */
+				a=fgetc(id3file2);
+				b=fgetc(id3file2);
+				c=fgetc(id3file2);
+				d=fgetc(id3file2);
+				fgetc(id3file2);
+				fgetc(id3file2); /* skip 2 flag bytes */
 				pos=pos+6;
 				size=a*128*128*128+b*128*128+c*128+d;
-				if (fgetc(id3file)==0) {size=size-1;pos++;} else fseek(id3file, pos, SEEK_SET); /* Possible unsynch byte */
-				if (size<250) fgets(title,size+1,id3file);
+				if (fgetc(id3file2)==0) {size=size-1;pos++;} else fseek(id3file2, pos, SEEK_SET); /* Possible unsynch byte */
+				if (size<250) fgets(title,size+1,id3file2);
 				else
 				{
-					fgets(title,251,id3file);
-					for ( ; i<size ; i++) {fgetc(id3file);} /* skip the rest if any */
+					fgets(title,251,id3file2);
+					for ( ; i<size ; i++) {fgetc(id3file2);} /* skip the rest if any */
 				}
 				pos=pos+size;
 	//			printf("Title: %s\n",title);
 			}
 			else if (a=='T' && b=='P' && c=='E' && d=='1') /* read artist */
 			{
-				a=fgetc(id3file);
-				b=fgetc(id3file);
-				c=fgetc(id3file);
-				d=fgetc(id3file);
-				fgetc(id3file);
-				fgetc(id3file); /* skip 2 flag bytes */
+				a=fgetc(id3file2);
+				b=fgetc(id3file2);
+				c=fgetc(id3file2);
+				d=fgetc(id3file2);
+				fgetc(id3file2);
+				fgetc(id3file2); /* skip 2 flag bytes */
 				pos=pos+6;
 				size=a*128*128*128+b*128*128+c*128+d;
-				if (fgetc(id3file)==0) {size=size-1;pos++;} else fseek(id3file, pos, SEEK_SET); /* Possible unsynch byte */
-				if (size<250) fgets(artist,size+1,id3file);
+				if (fgetc(id3file2)==0) {size=size-1;pos++;} else fseek(id3file2, pos, SEEK_SET); /* Possible unsynch byte */
+				if (size<250) fgets(artist,size+1,id3file2);
 				else
 				{
-					fgets(artist,251,id3file);
-					for ( ; i<size ; i++) {fgetc(id3file);} /* skip the rest if any */
+					fgets(artist,251,id3file2);
+					for ( ; i<size ; i++) {fgetc(id3file2);} /* skip the rest if any */
 				}
 				pos=pos+size;
 	//			printf("Artist: %s\n",artist);
 			}
 			else if (a=='T' && b=='Y' && c=='E' && d=='R') /* read year */
 			{
-				a=fgetc(id3file);
-				b=fgetc(id3file);
-				c=fgetc(id3file);
-				d=fgetc(id3file);
-				fgetc(id3file);
-				fgetc(id3file); /* skip 2 flag bytes */
+				a=fgetc(id3file2);
+				b=fgetc(id3file2);
+				c=fgetc(id3file2);
+				d=fgetc(id3file2);
+				fgetc(id3file2);
+				fgetc(id3file2); /* skip 2 flag bytes */
 				pos=pos+6;
 				size=a*128*128*128+b*128*128+c*128+d;
-				if (fgetc(id3file)==0) {size=size-1;pos++;} else fseek(id3file, pos, SEEK_SET); /* Possible unsynch byte */
-				if (size<250) fgets(year,size+1,id3file);
+				if (fgetc(id3file2)==0) {size=size-1;pos++;} else fseek(id3file2, pos, SEEK_SET); /* Possible unsynch byte */
+				if (size<250) fgets(year,size+1,id3file2);
 				else
 				{
-					fgets(year,251,id3file);
-					for ( ; i<size ; i++) {fgetc(id3file);} /* skip the rest if any */
+					fgets(year,251,id3file2);
+					for ( ; i<size ; i++) {fgetc(id3file2);} /* skip the rest if any */
 				}
 				pos=pos+size;
 	//			printf("Year: %s\n",year);
 			}
 			else if (a=='T' && b=='A' && c=='L' && d=='B') /* read album */
 			{
-				a=fgetc(id3file);
-				b=fgetc(id3file);
-				c=fgetc(id3file);
-				d=fgetc(id3file);
-				fgetc(id3file);
-				fgetc(id3file); /* skip 2 flag bytes */
+				a=fgetc(id3file2);
+				b=fgetc(id3file2);
+				c=fgetc(id3file2);
+				d=fgetc(id3file2);
+				fgetc(id3file2);
+				fgetc(id3file2); /* skip 2 flag bytes */
 				pos=pos+6;
 				size=a*128*128*128+b*128*128+c*128+d;
-				if (fgetc(id3file)==0) {size=size-1;pos++;} else fseek(id3file, pos, SEEK_SET); /* Possible unsynch byte */
-				if (size<250) fgets(album,size+1,id3file);
+				if (fgetc(id3file2)==0) {size=size-1;pos++;} else fseek(id3file2, pos, SEEK_SET); /* Possible unsynch byte */
+				if (size<250) fgets(album,size+1,id3file2);
 				else
 				{
-					fgets(album,251,id3file);
-					for ( ; i<size ; i++) {fgetc(id3file);} /* skip the rest if any */
+					fgets(album,251,id3file2);
+					for ( ; i<size ; i++) {fgetc(id3file2);} /* skip the rest if any */
 				}
 				pos=pos+size;
 	//			printf("Album: %s\n",album);
 			}
 			else if (a=='C' && b=='O' && c=='M' && d=='M') /* read comment */
 			{
-				a=fgetc(id3file);
-				b=fgetc(id3file);
-				c=fgetc(id3file);
-				d=fgetc(id3file);
-				fgetc(id3file);
-				fgetc(id3file); /* skip 2 flag bytes */
+				a=fgetc(id3file2);
+				b=fgetc(id3file2);
+				c=fgetc(id3file2);
+				d=fgetc(id3file2);
+				fgetc(id3file2);
+				fgetc(id3file2); /* skip 2 flag bytes */
 				pos=pos+6;
 				size=a*128*128*128+b*128*128+c*128+d;
-				if (fgetc(id3file)==0) {size=size-1;pos++;} else fseek(id3file, pos, SEEK_SET); /* Possible unsynch byte */
-				if (size<250) fgets(comment,size+1,id3file);
+				if (fgetc(id3file2)==0) {size=size-1;pos++;} else fseek(id3file2, pos, SEEK_SET); /* Possible unsynch byte */
+				if (size<250) fgets(comment,size+1,id3file2);
 				else
 				{
-					fgets(comment,251,id3file);
-					for ( ; i<size ; i++) {fgetc(id3file);} /* skip the rest if any */
+					fgets(comment,251,id3file2);
+					for ( ; i<size ; i++) {fgetc(id3file2);} /* skip the rest if any */
 				}
 				pos=pos+size;
 	//			printf("Comment: %s\n",comment);
@@ -1139,18 +1156,18 @@ long importid3(long seekpos)
 			else
 			{
 				/* frame not important, so skip it */
-				a=fgetc(id3file);
-				b=fgetc(id3file);
-				c=fgetc(id3file);
-				d=fgetc(id3file);
+				a=fgetc(id3file2);
+				b=fgetc(id3file2);
+				c=fgetc(id3file2);
+				d=fgetc(id3file2);
 	//			printf("\nskip a=%u b=%u c=%u d=%u\n",a,b,c,d);
-				fgetc(id3file);
-				fgetc(id3file); /* skip 2 flag bytes */
+				fgetc(id3file2);
+				fgetc(id3file2); /* skip 2 flag bytes */
 				pos=pos+6;
 				size=a*128*128*128+b*128*128+c*128+d;
 	//			printf("\nskip size=%li length=%li\n",size,length);
 				if (size>length-pos) break;
-				for (i=0 ; i<size ; i++) {fgetc(id3file);} /* skip the rest if any */
+				for (i=0 ; i<size ; i++) {fgetc(id3file2);} /* skip the rest if any */
 				pos=pos+size;
 			}
 		}
@@ -1161,108 +1178,108 @@ long importid3(long seekpos)
 		while (pos<length)
 		{
 			if (pos+3>=length) break;
-			a=fgetc(id3file);
-			b=fgetc(id3file);
-			c=fgetc(id3file);
+			a=fgetc(id3file2);
+			b=fgetc(id3file2);
+			c=fgetc(id3file2);
 			pos=pos+3;
 
 			if (a==0 && b==0 && c==0) break; /* is padding at the end of the tag */
 			else if (a=='T' && b=='T' && c=='2') /* read title */
 			{
-				a=fgetc(id3file);
-				b=fgetc(id3file);
-				c=fgetc(id3file);
+				a=fgetc(id3file2);
+				b=fgetc(id3file2);
+				c=fgetc(id3file2);
 				pos=pos+3;
 				size=a*128*128+b*128+c;
-				if (fgetc(id3file)==0) {size=size-1;pos++;} else fseek(id3file, pos, SEEK_SET); /* Possible unsynch byte */
-				if (size<250) fgets(title,size+1,id3file);
+				if (fgetc(id3file2)==0) {size=size-1;pos++;} else fseek(id3file2, pos, SEEK_SET); /* Possible unsynch byte */
+				if (size<250) fgets(title,size+1,id3file2);
 				else
 				{
-					fgets(title,251,id3file);
-					for ( ; i<size ; i++) {fgetc(id3file);} /* skip the rest if any */
+					fgets(title,251,id3file2);
+					for ( ; i<size ; i++) {fgetc(id3file2);} /* skip the rest if any */
 				}
 				pos=pos+size;
 			}
 			else if (a=='T' && b=='P' && c=='1') /* read artist */
 			{
-				a=fgetc(id3file);
-				b=fgetc(id3file);
-				c=fgetc(id3file);
+				a=fgetc(id3file2);
+				b=fgetc(id3file2);
+				c=fgetc(id3file2);
 				pos=pos+3;
 				size=a*128*128+b*128+c;
-				if (fgetc(id3file)==0) {size=size-1;pos++;} else fseek(id3file, pos, SEEK_SET); /* Possible unsynch byte */
-				if (size<250) fgets(artist,size+1,id3file);
+				if (fgetc(id3file2)==0) {size=size-1;pos++;} else fseek(id3file2, pos, SEEK_SET); /* Possible unsynch byte */
+				if (size<250) fgets(artist,size+1,id3file2);
 				else
 				{
-					fgets(artist,251,id3file);
-					for ( ; i<size ; i++) {fgetc(id3file);} /* skip the rest if any */
+					fgets(artist,251,id3file2);
+					for ( ; i<size ; i++) {fgetc(id3file2);} /* skip the rest if any */
 				}
 				pos=pos+size;
 			}
 			else if (a=='T' && b=='Y' && c=='E') /* read year */
 			{
-				a=fgetc(id3file);
-				b=fgetc(id3file);
-				c=fgetc(id3file);
+				a=fgetc(id3file2);
+				b=fgetc(id3file2);
+				c=fgetc(id3file2);
 				pos=pos+3;
 				size=a*128*128+b*128+c;
-				if (fgetc(id3file)==0) {size=size-1;pos++;} else fseek(id3file, pos, SEEK_SET); /* Possible unsynch byte */
-				if (size<250) fgets(year,size+1,id3file);
+				if (fgetc(id3file2)==0) {size=size-1;pos++;} else fseek(id3file2, pos, SEEK_SET); /* Possible unsynch byte */
+				if (size<250) fgets(year,size+1,id3file2);
 				else
 				{
-					fgets(year,251,id3file);
-					for ( ; i<size ; i++) {fgetc(id3file);} /* skip the rest if any */
+					fgets(year,251,id3file2);
+					for ( ; i<size ; i++) {fgetc(id3file2);} /* skip the rest if any */
 				}
 				pos=pos+size;
 			}
 			else if (a=='C' && b=='O' && c=='M') /* read comment */
 			{
-				a=fgetc(id3file);
-				b=fgetc(id3file);
-				c=fgetc(id3file);
+				a=fgetc(id3file2);
+				b=fgetc(id3file2);
+				c=fgetc(id3file2);
 				pos=pos+3;
 				size=a*128*128+b*128+c;
-				if (fgetc(id3file)==0) {size=size-1;pos++;} else fseek(id3file, pos, SEEK_SET); /* Possible unsynch byte */
-				if (size<250) fgets(comment,size+1,id3file);
+				if (fgetc(id3file2)==0) {size=size-1;pos++;} else fseek(id3file2, pos, SEEK_SET); /* Possible unsynch byte */
+				if (size<250) fgets(comment,size+1,id3file2);
 				else
 				{
-					fgets(comment,251,id3file);
-					for ( ; i<size ; i++) {fgetc(id3file);} /* skip the rest if any */
+					fgets(comment,251,id3file2);
+					for ( ; i<size ; i++) {fgetc(id3file2);} /* skip the rest if any */
 				}
 				pos=pos+size;
 			}
 			else if (a=='T' && b=='A' && c=='L') /* read album */
 			{
-				a=fgetc(id3file);
-				b=fgetc(id3file);
-				c=fgetc(id3file);
+				a=fgetc(id3file2);
+				b=fgetc(id3file2);
+				c=fgetc(id3file2);
 				pos=pos+3;
 				size=a*128*128+b*128+c;
-				if (fgetc(id3file)==0) {size=size-1;pos++;} else fseek(id3file, pos, SEEK_SET); /* Possible unsynch byte */
-				if (size<250) fgets(album,size+1,id3file);
+				if (fgetc(id3file2)==0) {size=size-1;pos++;} else fseek(id3file2, pos, SEEK_SET); /* Possible unsynch byte */
+				if (size<250) fgets(album,size+1,id3file2);
 				else
 				{
-					fgets(album,251,id3file);
-					for ( ; i<size ; i++) {fgetc(id3file);} /* skip the rest if any */
+					fgets(album,251,id3file2);
+					for ( ; i<size ; i++) {fgetc(id3file2);} /* skip the rest if any */
 				}
 				pos=pos+size;
 			}
 			else
 			{
 				/* frame not important, so skip it */
-				a=fgetc(id3file);
-				b=fgetc(id3file);
-				c=fgetc(id3file);
+				a=fgetc(id3file2);
+				b=fgetc(id3file2);
+				c=fgetc(id3file2);
 				pos=pos+3;
 				size=a*128*128+b*128+c;
 				if (size>length-pos) break;
-				for (i=0 ; i<size ; i++) {fgetc(id3file);} /* skip the rest if any */
+				for (i=0 ; i<size ; i++) {fgetc(id3file2);} /* skip the rest if any */
 				pos=pos+size;
 			}
 		}
 	}
 
-	fclose(id3file);
+// 	fclose(id3file);
 
 	/* in case there was no info about them: */
 	if (strlen(title)==0) snprintf(title,31,"%s","unknown title");
@@ -1324,11 +1341,11 @@ void infotag(long seekpos)
 /* This function copies the ID3 V1 tag to a tempfile */
 void copytag(long seekpos)
 {
-	char outname[8191]="/tmp/id3v1tag";
-	FILE *outfile;
+// 	char id3name1[8191]="/tmp/id3v1tag";
+// 	FILE *outfile;
 	int j=0;
 
-	remove("/tmp/id3v1tag");
+// 	remove("/tmp/id3v1tag");
 
 	if (seekpos < 0) seekpos=0;
 	if (seekpos > filesize) seekpos=filesize;
@@ -1339,9 +1356,10 @@ void copytag(long seekpos)
 
 	/* copy tag to file */
 	fseek(mp3file, seekpos-128, SEEK_SET);
-	if (NULL== (outfile = fopen(outname,"wb"))){perror("\ncutmp3: failed writing /tmp/id3v1tag");exitseq(8);}
-	for (j=0 ; j < 128 ; j++) fputc(getc(mp3file),outfile);
-	fclose(outfile);
+// 	if (NULL== (id3file1 = fopen(id3name1,"wb"))){perror("\ncutmp3: failed writing /tmp/id3v1tag");exitseq(8);}
+	fseek(id3file1, 0, SEEK_SET);
+	for (j=0 ; j < 128 ; j++) fputc(getc(mp3file),id3file1);
+// 	fclose(id3file1);
 
 	return;
 }
@@ -1450,14 +1468,14 @@ long alsoid3(long showpos)
 /* This function copies the ID3 V2 tag to a tempfile */
 void copyid3(long startpos, long endpos)
 {
-	char outname[8191]="/tmp/id3v2tag";
+// 	char id3name2[8191]="/tmp/id3v2tag";
 	long bytesin=0;
-	FILE *outfile;
+// 	FILE *id3file2;
 
 	long int length=0, pos=0, i=0;
-	char id3name[32]="/tmp/id3v2tag";
+// 	char id3name[32]="/tmp/id3v2tag";
 	int size=0, hasexthdr=0, footer=0;
-	FILE *id3file;
+// 	FILE *id3file2;
 	unsigned char a,b,c,d;
 	int majorv, minorv;
 
@@ -1465,34 +1483,37 @@ void copyid3(long startpos, long endpos)
 	if (endpos > filesize) endpos=filesize;
 	if (endpos < startpos) return;
 
-	if (NULL== (outfile = fopen(outname,"wb"))){perror("\ncutmp3: failed writing /tmp/id3v2tag");exitseq(7);}
+// 	if (NULL== (id3file2 = fopen(id3name2,"wb"))){perror("\ncutmp3: failed writing /tmp/id3v2tag");exitseq(7);}
 	fseek(mp3file, startpos, SEEK_SET);
+	fseek(id3file2, 0, SEEK_SET);
 	for (bytesin=0 ; bytesin < endpos-startpos ; bytesin++)
 	{
-		fputc(getc(mp3file),outfile);
+		fputc(getc(mp3file),id3file2);
 	}
-	fclose(outfile);
+// 	fclose(id3file2);
 
-	id3file = fopen(id3name,"rb");
-	for (i=0 ; i < 3 ; i++) {fgetc(id3file); pos++;} /* skip ID3 */
-	majorv=fgetc(id3file); pos++;
-	minorv=fgetc(id3file); pos++;
-	a=b=fgetc(id3file); pos++; /* flags byte */
+// 	id3file2 = fopen(id3name,"rb");
+	fseek(id3file2, 0, SEEK_SET);
+	for (i=0 ; i < 3 ; i++) {fgetc(id3file2); pos++;} /* skip ID3 */
+	majorv=fgetc(id3file2); pos++;
+	minorv=fgetc(id3file2); pos++;
+	a=b=fgetc(id3file2); pos++; /* flags byte */
 //	printf(" flags byte=%u ",a);
-	if(majorv!=2) {fclose(id3file); return;} /* only V2 */
+// 	if(majorv!=2) {fclose(id3file2); return;} /* only V2 */
+	if(majorv!=2) {return;} /* only V2 */
 	if(minorv>=3) hasexthdr=(a<<1)>>7; /* has extended header? */
 	if(minorv==4) footer=((b<<3)>>7)*10; /* has footer? */
-	for (i=0 ; i < 4 ; i++) {fgetc(id3file); pos++;} /* skip tag length info */
+	for (i=0 ; i < 4 ; i++) {fgetc(id3file2); pos++;} /* skip tag length info */
 	if (hasexthdr)
 	{
 		/* skip ext header */
-		a=fgetc(id3file);
-		b=fgetc(id3file);
-		c=fgetc(id3file);
-		d=fgetc(id3file);
+		a=fgetc(id3file2);
+		b=fgetc(id3file2);
+		c=fgetc(id3file2);
+		d=fgetc(id3file2);
 		pos=pos+4;
 		size=a*128*128*128+b*128*128+c*128+d;
-		for (i=0 ; i < size-4 ; i++) {fgetc(id3file); pos++;}
+		for (i=0 ; i < size-4 ; i++) {fgetc(id3file2); pos++;}
 //		printf("\nhasexthdr of size=%i\n",size);
 	}
 
@@ -1502,30 +1523,29 @@ void copyid3(long startpos, long endpos)
 		{
 	//		printf("\nloopstart pos=%li length=%li footer=%i\n",pos,length,footer);
 			if (pos+4>=length-footer) break;
-			a=fgetc(id3file);
-			b=fgetc(id3file);
-			c=fgetc(id3file);
-			d=fgetc(id3file);
+			a=fgetc(id3file2);
+			b=fgetc(id3file2);
+			c=fgetc(id3file2);
+			d=fgetc(id3file2);
 			pos=pos+4;
 	//		printf("\nloopstart: a=%c b=%c c=%c d=%c\n",a,b,c,d);
 
 			if (a==0 && b==0 && c==0 && d==0) break; /* is padding at the end of the tag */
 			else if (a=='T' && b=='L' && c=='E' && d=='N') /* track length info */
 			{
-				a=fgetc(id3file);
-				b=fgetc(id3file);
-				c=fgetc(id3file);
-				d=fgetc(id3file);
-				fgetc(id3file);
-				fgetc(id3file); /* skip 2 flag bytes */
+				a=fgetc(id3file2);
+				b=fgetc(id3file2);
+				c=fgetc(id3file2);
+				d=fgetc(id3file2);
+				fgetc(id3file2); fgetc(id3file2); /* skip 2 flag bytes */
 				pos=pos+6;
 				size=a*128*128*128+b*128*128+c*128+d;
-				if (fgetc(id3file)==0) {size=size-1;pos++;} else fseek(id3file, pos, SEEK_SET); /* Possible unsynch byte */
-				if (size<250) fgets(title,size+1,id3file);
+				if (fgetc(id3file2)==0) {size=size-1;pos++;} else fseek(id3file2, pos, SEEK_SET); /* Possible unsynch byte */
+				if (size<250) fgets(title,size+1,id3file2);
 				else
 				{
-					fgets(title,251,id3file);
-					for ( ; i<size ; i++) {fgetc(id3file);} /* skip the rest if any */
+					fgets(title,251,id3file2);
+					for ( ; i<size ; i++) {fgetc(id3file2);} /* skip the rest if any */
 				}
 				pos=pos+size;
 //				printf("Track length: %s\n",title);
@@ -1533,18 +1553,17 @@ void copyid3(long startpos, long endpos)
 			else
 			{
 				/* frame not important, so skip it */
-				a=fgetc(id3file);
-				b=fgetc(id3file);
-				c=fgetc(id3file);
-				d=fgetc(id3file);
+				a=fgetc(id3file2);
+				b=fgetc(id3file2);
+				c=fgetc(id3file2);
+				d=fgetc(id3file2);
 //				printf("\nskip a=%u b=%u c=%u d=%u\n",a,b,c,d);
-				fgetc(id3file);
-				fgetc(id3file); /* skip 2 flag bytes */
+				fgetc(id3file2); fgetc(id3file2); /* skip 2 flag bytes */
 				pos=pos+6;
 				size=a*128*128*128+b*128*128+c*128+d;
 //				printf("\nskip size=%li length=%li\n",size,length);
 				if (size>length-pos) break;
-				for (i=0 ; i<size ; i++) {fgetc(id3file);} /* skip the rest if any */
+				for (i=0 ; i<size ; i++) {fgetc(id3file2);} /* skip the rest if any */
 				pos=pos+size;
 			}
 		}
@@ -1555,44 +1574,44 @@ void copyid3(long startpos, long endpos)
 		while (pos<length)
 		{
 			if (pos+3>=length) break;
-			a=fgetc(id3file);
-			b=fgetc(id3file);
-			c=fgetc(id3file);
+			a=fgetc(id3file2);
+			b=fgetc(id3file2);
+			c=fgetc(id3file2);
 			pos=pos+3;
 
 			if (a==0 && b==0 && c==0) break; /* is padding at the end of the tag */
 			else if (a=='T' && b=='L' && c=='E') /* track length */
 			{
-				a=fgetc(id3file);
-				b=fgetc(id3file);
-				c=fgetc(id3file);
+				a=fgetc(id3file2);
+				b=fgetc(id3file2);
+				c=fgetc(id3file2);
 				pos=pos+3;
 				size=a*128*128+b*128+c;
-				if (fgetc(id3file)==0) {size=size-1;pos++;} else fseek(id3file, pos, SEEK_SET); /* Possible unsynch byte */
-				if (size<250) fgets(title,size+1,id3file);
+				if (fgetc(id3file2)==0) {size=size-1;pos++;} else fseek(id3file2, pos, SEEK_SET); /* Possible unsynch byte */
+				if (size<250) fgets(title,size+1,id3file2);
 				else
 				{
-					fgets(title,251,id3file);
-					for ( ; i<size ; i++) {fgetc(id3file);} /* skip the rest if any */
+					fgets(title,251,id3file2);
+					for ( ; i<size ; i++) {fgetc(id3file2);} /* skip the rest if any */
 				}
 				pos=pos+size;
 			}
 			else
 			{
 				/* frame not important, so skip it */
-				a=fgetc(id3file);
-				b=fgetc(id3file);
-				c=fgetc(id3file);
+				a=fgetc(id3file2);
+				b=fgetc(id3file2);
+				c=fgetc(id3file2);
 				pos=pos+3;
 				size=a*128*128+b*128+c;
 				if (size>length-pos) break;
-				for (i=0 ; i<size ; i++) {fgetc(id3file);} /* skip the rest if any */
+				for (i=0 ; i<size ; i++) {fgetc(id3file2);} /* skip the rest if any */
 				pos=pos+size;
 			}
 		}
 	}
 
-	fclose(id3file);
+// 	fclose(id3file2);
 
 	return;
 }
@@ -1706,14 +1725,13 @@ void playsel(long int playpos)
 {
 	long bytesin;
 	long playsize=avbr*128*howlong; /* approx. 'howlong' seconds */
-	char outname[8191];
 	long pos;
+	long temppos=0;
 	FILE *outfile;
+	char command[1023];
+	char playname[16] = "/tmp/playXXXXXX";
+	int fd=-1;
 	int i=0;
-	long temppos;
-
-	snprintf(outname,8190,"%s","/tmp/cut.mp3");
-	remove(outname); /* delete old tempfile */
 
 	if (!mute)
 	{
@@ -1723,7 +1741,10 @@ void playsel(long int playpos)
 			playpos=audiobegin;
 		}
 		if (playpos > filesize) playpos=filesize;
-		if (NULL== (outfile = fopen(outname,"w+b"))){perror("\ncutmp3: failed writing /tmp/cut.mp3");exitseq(9);}
+		if ((fd = mkstemp(playname)) == -1 || (NULL== (outfile = fdopen(fd, "w+b"))) )
+		{
+			perror("\ncutmp3: failed writing temporary mp3 in /tmp");exitseq(9);
+		}
 		fseek(mp3file, playpos, SEEK_SET);
 		for (bytesin=0; bytesin < playsize; bytesin++) fputc(getc(mp3file),outfile);
 		fclose(outfile);
@@ -1734,16 +1755,19 @@ void playsel(long int playpos)
 
 	if (!mute)
 	{
-		if (card==2)
-		system("mpg123 /tmp/cut.mp3 -a /dev/dsp1 > /tmp/mpg123.log 2>&1 &");
-		else if (card==3)
-		system("mpg123 /tmp/cut.mp3 -a /dev/dsp2 > /tmp/mpg123.log 2>&1 &");
-		else if (card==4)
-		system("mpg123 /tmp/cut.mp3 -a /dev/dsp3 > /tmp/mpg123.log 2>&1 &");
-		else if (card==5)
-		system("mpg123 /tmp/cut.mp3 -a /dev/dsp4 > /tmp/mpg123.log 2>&1 &");
+ 		if (card > 1)
+		snprintf(command,1022," %s %s %s%u %s %s %s","mpg123",playname,"-a /dev/dsp",card-1,">",logname,"2>&1 &");
+// 		else if (card==3)
+// 		snprintf(command,1022," %s %s %s","mpg123",playname,"-a /dev/dsp2 > /tmp/mpg123.log 2>&1 &");
+// 		else if (card==4)
+// 		snprintf(command,1022," %s %s %s","mpg123",playname,"-a /dev/dsp3 > /tmp/mpg123.log 2>&1 &");
+// 		else if (card==5)
+// 		snprintf(command,1022," %s %s %s","mpg123",playname,"-a /dev/dsp4 > /tmp/mpg123.log 2>&1 &");
 		else
-		system("mpg123 /tmp/cut.mp3 > /tmp/mpg123.log 2>&1 &");
+		snprintf(command,1022," %s %s %s %s %s","mpg123",playname,">",logname,"2>&1 &");
+		system(command);  /* play mp3 excerpt */
+
+// 		printf("%s\n",command); /* debug */
 
 		printf("  playing at %3u:%05.2f",showmins(pos-audiobegin),showsecs(pos-audiobegin));
 
@@ -1763,6 +1787,7 @@ void playsel(long int playpos)
 		printf(" / ~%u:%02.0f  (~%u:%02.0f after startpoint) \n",totalmins,totalsecs,showmins(playpos-inpoint),showsecs(playpos-inpoint));
 		else
 		printf(" / ~%u:%02.0f  (~%u:%02.0f before startpoint) \n",totalmins,totalsecs,showmins(inpoint-playpos),showsecs(inpoint-playpos));
+
 	}
 	else
 	{
@@ -1772,6 +1797,8 @@ void playsel(long int playpos)
 		printf("  position is %3u:%05.2f / ~%u:%02.0f  (~%u:%02.0f before startpoint) \n",showmins(pos-audiobegin),showsecs(pos-audiobegin),totalmins,totalsecs,showmins(inpoint-playpos),showsecs(inpoint-playpos));
 	}
 
+	if (!mute && livetime==0) { usleep(50000); } /* wait some time to start playing the file */
+ 	remove(playname); /* delete tempfile */
 
 }
 
@@ -1902,7 +1929,11 @@ void savesel(char *prefix)
 	int a;
 	FILE *fp;
 	FILE *outfile;
-	FILE *id3file;
+// 	FILE *id3file;
+
+	/* correct mins and secs */
+	if(startsecs>59.999){ do {startmins++; startsecs=startsecs-60;} while (startsecs>59.999);}
+	if(endsecs>59.999) { do {endmins++; endsecs=endsecs-60;} while (endsecs>59.999);}
 
 	/* Import title from tags. Prefer V1 over V2!
 	   No user interaction in this function */
@@ -1958,6 +1989,7 @@ void savesel(char *prefix)
 		if (nonint==1)
 		{
 			fprintf(stdout,"  cutmp3: setting startpoint (%u:%05.2f) to beginning of file (%u:%05.2f)!  \n",showmins(inpoint),showsecs(inpoint),showmins(audiobegin),showsecs(audiobegin));
+			inpoint=audiobegin;
 			return;
 		}
 		else
@@ -1970,14 +2002,15 @@ void savesel(char *prefix)
 	{
 		if (nonint==1)
 		{
+// 			printf("%lu %lu",outpoint,filesize);
 			fprintf(stdout,"  cutmp3: setting endpoint (%u:%05.2f) to end of file (%u:%05.2f)!  \n",showmins(outpoint),showsecs(outpoint),showmins(filesize),showsecs(filesize));
-			return;
+// 			return;
 		}
 		else
 		{
 			printf("  WARNING: setting endpoint (%u:%05.2f) to end of file (%u:%05.2f)!  \n",showmins(outpoint),showsecs(outpoint),showmins(filesize),showsecs(filesize));
-			outpoint=filesize;
 		}
+		outpoint=filesize;
 	}
 	if (outpoint <= inpoint)
 	{
@@ -2017,9 +2050,10 @@ void savesel(char *prefix)
 	/* copy id3 in case of -c switch */
 	if (copytags==1 && importid3(0)>0)
 	{
-		id3file = fopen("/tmp/id3v2tag","rb");
-		while( (a=fgetc(id3file)) != EOF ) fputc(a,outfile);
-		fclose(id3file);
+// 		id3file = fopen("/tmp/id3v2tag","rb");
+		fseek(id3file2, 0, SEEK_SET);
+		while( (a=fgetc(id3file2)) != EOF ) fputc(a,outfile);
+// 		fclose(id3file);
 	}
 
 	/* COPY DATA HERE */
@@ -2034,13 +2068,14 @@ void savesel(char *prefix)
 	/* copy tag in case of -c switch */
 	if (copytags==1 && importtag(filesize)>0)
 	{
-		id3file = fopen("/tmp/id3v1tag","rb");
-		while( (a=fgetc(id3file)) != EOF )
+// 		id3file = fopen("/tmp/id3v1tag","rb");
+		fseek(id3file1, 0, SEEK_SET);
+		while( (a=fgetc(id3file1)) != EOF )
 		{
 			if(stdoutwrite==1) putchar(a);
 			else fputc(a,outfile);
 		}
-		fclose(id3file);
+// 		fclose(id3file);
 	}
 
 	/* close outfile */
@@ -2104,7 +2139,7 @@ void savewithtag(void)
 	char *newname=outname2;
 	char *tmp;
 	FILE *fp;
-	FILE *id3file;
+// 	FILE *id3file;
 	FILE *outfile;
 	long oldinpoint=inpoint;
 	long oldoutpoint=outpoint;
@@ -2230,17 +2265,19 @@ void savewithtag(void)
 		/* copy audio data */
 		for (bytesin=0; bytesin < outpoint-inpoint; bytesin++) fputc(getc(mp3file),outfile);
 		/* copy id3 v1 tag */
-		id3file = fopen("/tmp/id3v1tag","rb");
-		while(( a=fgetc(id3file)) != EOF ) fputc(a,outfile);
-		fclose(id3file);
+// 		id3file = fopen("/tmp/id3v1tag","rb");
+		fseek(id3file1, 0, SEEK_SET);
+		while(( a=fgetc(id3file1)) != EOF ) fputc(a,outfile);
+// 		fclose(id3file);
 		printf(" finished.\n");
 	}
 	else if (tagver=='2') /* if chosen to copy ID3 V2 */
 	{
 		/* copy id3 v2 tag */
-		id3file = fopen("/tmp/id3v2tag","rb");
-		while(( a=fgetc(id3file)) != EOF ) fputc(a,outfile);
-		fclose(id3file);
+// 		id3file = fopen("/tmp/id3v2tag","rb");
+		fseek(id3file2, 0, SEEK_SET);
+		while(( a=fgetc(id3file2)) != EOF ) fputc(a,outfile);
+// 		fclose(id3file);
 		outpoint=outpoint-importtag(outpoint); /* remove possible tag at end */
 		inpoint=inpoint+importid3(inpoint); /* remove possible id3 at beginning */
 		/* copy audio data */
@@ -2490,6 +2527,7 @@ void cutexact(char *prefix)
 	unsigned char a,b,c,d;
 	long double time=0;
 
+
 	/* first look for inpoint */
 
 //	printf("  seeking startpoint");
@@ -2529,6 +2567,8 @@ void cutexact(char *prefix)
 	/* inpoint reached, now search for outpoint */
 
 //	printf("  seeking endpoint");
+	pos=audiobegin;
+	time=0;
 	if (endoff<0)
 	{
 		printf("  seeking endpoint backwards... (slow!)\n");
@@ -2557,6 +2597,7 @@ void cutexact(char *prefix)
 			}
 		}
 		outpoint=pos;
+		if (outpoint>filesize) outpoint=filesize;
 	}
 
 	/* outpoint reached, now write file */
@@ -2570,16 +2611,19 @@ void cutexact(char *prefix)
 
 
 /* This function writes a timetable when -a and -b is used */
-void writetable(char *tablename)
+void writetable()
 {
-	FILE *outfile;
+	int fd=-1;
 
-	if (NULL== (outfile = fopen(tablename,"wb"))){perror("\ncutmp3: failed writing /tmp/timetable");exitseq(11);}
-	fprintf(outfile, userin);
-	fprintf(outfile, " ");
-	fprintf(outfile, userout);
-	fprintf(outfile, "\n");
-	fclose(outfile);
+	if ((fd = mkstemp(tblname)) == -1 || (NULL== (tblfile = fdopen(fd, "w+b"))) )
+	{
+		perror("\ncutmp3: failed writing temporary timetable in /tmp");exitseq(11);
+	}
+	fprintf(tblfile, userin);
+	fprintf(tblfile, " ");
+	fprintf(tblfile, userout);
+	fprintf(tblfile, "\n");
+	fclose(tblfile);
 	a_b_used=1;
 	return;
 }
@@ -2588,8 +2632,8 @@ void writetable(char *tablename)
 /* This function copies selections when using a timetable */
 void cutfromtable(char *tablename, char *prefix)
 {
-	int pos2, position=1, count=1;
-	double number;
+	int pos2, position=1, linenumber=1;
+	double number=0;
 	startsecs=startmins=endsecs=endmins=0;
 	startoff=endoff=1;
 
@@ -2604,62 +2648,78 @@ void cutfromtable(char *tablename, char *prefix)
 		/* position: startmins=1 startsek=2 startten=3 starthun=4 */
 		/*             endmins=5   endsek=6   endten=7   endhun=8 */
 		number=ttable[pos2]-48;
-		if (isdigit(ttable[pos2]) && position==1) startmins=startmins*10+ttable[pos2]-48;
-		if (isdigit(ttable[pos2]) && position==2) startsecs=startsecs*10+ttable[pos2]-48;
-		if (isdigit(ttable[pos2]) && position==3)
+		if (isdigit(ttable[pos2])) /* char is a digit */
 		{
-			startsecs=startsecs+number/10;
-			position++;
-			pos2++;
-			number=ttable[pos2]-48;
+			switch (position)
+			{	case 1: startmins=startmins*10+ttable[pos2]-48; break;
+				case 2: startsecs=startsecs*10+ttable[pos2]-48; break;
+				case 3: startsecs=startsecs+number/10; position++; break;
+				case 4: startsecs=startsecs+number/100; do pos2++; while (!isspace(ttable[pos2])); break;
+				case 5: endmins=endmins*10+ttable[pos2]-48; break;
+				case 6: endsecs=endsecs*10+ttable[pos2]-48; break;
+				case 7: endsecs=endsecs+number/10; position++; break;
+				case 8: endsecs=endsecs+number/100; position++; break;
+				default: break;
+			}
 		}
-		if (isdigit(ttable[pos2]) && position==4) startsecs=startsecs+number/100;
-		if (isdigit(ttable[pos2]) && position==5) endmins=endmins*10+ttable[pos2]-48;
-		if (isdigit(ttable[pos2]) && position==6) endsecs=endsecs*10+ttable[pos2]-48;
-		if (isdigit(ttable[pos2]) && position==7)
-		{
-			endsecs=endsecs+number/10;
-			position++;
-			pos2++;
-			number=ttable[pos2]-48;
-		}
-		if (isdigit(ttable[pos2]) && position==8) endsecs=endsecs+number/100;
 
 		/* '-' is offset from end */
 		if (ttable[pos2]==45 && position < 5) startoff=-1;
 		if (ttable[pos2]==45 && position > 4) endoff=-1;
 		/* ':' and '.' increase position */
-		if (ttable[pos2]==58) position++;
-		if (ttable[pos2]==46) position++;
+		if (ttable[pos2]==58 && position < 5) {position=2;} /* : */
+		if (ttable[pos2]==58 && position > 4) {position=6;} /* : */
+		if (ttable[pos2]==46 && position==1) {startsecs=startmins; startmins=0; position=3;} /* . */
+		if (ttable[pos2]==46 && position==2) {position=3;} /* . */
+		if (ttable[pos2]==46 && position==5) {endsecs=endmins; endmins=0; position=7;} /* . */
+		if (ttable[pos2]==46 && position==6) {position=7;} /* . */
 
-		/* space switches to read end or to cutexact */
-		if (isspace(ttable[pos2]) && position<5 && position>1) position=5;
-		if (isspace(ttable[pos2]) && position>5)
+		/* space switches to read end or to cutexact() */
+		if (isspace(ttable[pos2]))  /* char is a whitespace */
 		{
-			if (a_b_used!=1) printf(" timetable line %i\n",count);count++;
-			if (endmins*endoff>totalmins)
+			if (position==5 && endmins+endsecs > 0)  /* only minutes given, finish */
 			{
-				printf("  WARNING: setting endpoint (%li:%05.2f) to end of file (%u:%05.2f)!  \n",endmins,endsecs,showmins(filesize),showsecs(filesize));
-				endmins=totalmins;
-				endsecs=totalsecs;
+				position=9;
 			}
-			if (endmins*endoff==totalmins && endsecs>totalsecs)
+			if (position < 5) position=5;  /* read end now */
+			if (position > 4 && endmins+endsecs > 0) /* cut exact now */
 			{
-				printf("  WARNING: setting endpoint (%li:%05.2f) to end of file (%u:%05.2f)!  \n",endmins,endsecs,showmins(filesize),showsecs(filesize));
-				endsecs=totalsecs;
+				/* correct mins and secs */
+				if(startsecs>59.999){ do {startmins++; startsecs=startsecs-60;} while (startsecs>59.999);}
+				if(endsecs>59.999) { do {endmins++; endsecs=endsecs-60;} while (endsecs>59.999);}
+
+				if (a_b_used!=1) printf(" using timetable \"%s\" line %i:\n",tablename,linenumber);linenumber++;
+				if (endmins*endoff>totalmins)
+				{
+					printf("  WARNING: setting endpoint (%li:%05.2f) to end of file (%u:%05.2f)!  \n",endmins,endsecs,showmins(filesize),showsecs(filesize));
+					endmins=totalmins;
+					endsecs=totalsecs;
+				}
+				if (endmins*endoff==totalmins && endsecs>totalsecs)
+				{
+// 					printf("%lu %lu",outpoint,filesize);
+					printf("  WARNING: setting endpoint (%li:%05.2f)  to end of file (%u:%05.2f)!  \n",endmins,endsecs,showmins(filesize),showsecs(filesize));
+					endsecs=totalsecs;
+				}
+				if (startmins*startoff>totalmins)
+				{
+					printf("  ERROR: startpoint (%li:%05.2f) is after end of file (%u:%05.2f)!  \n",startmins,startsecs,showmins(filesize),showsecs(filesize));
+				}
+				if (startmins*startoff==totalmins && startsecs>totalsecs)
+				{
+					printf("  ERROR: startpoint (%li:%05.2f)  is after end of file (%u:%05.2f)!  \n",startmins,startsecs,showmins(filesize),showsecs(filesize));
+				}
+				/* end after start? -> check in cutexact() */
+/*				if (startmins*60+startsecs>=endmins*60+endsecs && startoff==1 && endoff==1)
+				{
+					fprintf(stdout,"  cutmp3: endpoint (%li:%05.2f) must be after startpoint (%li:%05.2f)!  \n",endmins,endsecs,startmins,startsecs);
+				}*/
+				else cutexact(prefix);
+				position=1;
+				startsecs=startmins=endsecs=endmins=0;
+				startoff=endoff=1;
+				number=0;
 			}
-			if (startmins*startoff>totalmins)
-			{
-				printf("  ERROR: startpoint (%li:%05.2f) is after end of file (%u:%05.2f)!  \n",startmins,startsecs,showmins(filesize),showsecs(filesize));
-			}
-			if (startmins*startoff==totalmins && startsecs>totalsecs)
-			{
-				printf("  ERROR: startpoint (%li:%05.2f) is after end of file (%u:%05.2f)!  \n",startmins,startsecs,showmins(filesize),showsecs(filesize));
-			}
-			cutexact(prefix);
-			position=1;
-			startsecs=startmins=endsecs=endmins=0;
-			startoff=endoff=1;
 		}
 
 		if (ttable[pos2]==255) pos2=BUFFER;
@@ -2742,13 +2802,24 @@ int main(int argc, char *argv[])
 	char *tablename=malloc(8191);
 	char *prefix=malloc(8191);
 
-//	mkstemp(template);
-
 /* ------------------------------------------------------------------------- */
 /*                   */
 /* parse commandline */
 /*                   */
 /* ------------------------------------------------------------------------- */
+
+	if ((fd1 = mkstemp(id3name1)) == -1 || (NULL== (id3file1 = fdopen(fd1, "w+b"))) )
+	{
+		perror("\ncutmp3: failed writing temporary id3v1 file in /tmp");exitseq(8); /* open temp.id3.file read-writable zero length */
+	}
+	if ((fd2 = mkstemp(id3name2)) == -1 || (NULL== (id3file2 = fdopen(fd2, "w+b"))) )
+	{
+		perror("\ncutmp3: failed writing temporary id3v2 file in /tmp");exitseq(7); /* open temp.id3.file read-writable zero length */
+	}
+	if ((fdlog = mkstemp(logname)) == -1 || (NULL== (logfile = fdopen(fdlog, "w+b"))) )
+	{
+		perror("\ncutmp3: failed writing temporary logfile in /tmp");exitseq(11);
+	}
 
 	readconf();       /* read configuration file first! */
 
@@ -2869,7 +2940,7 @@ int main(int argc, char *argv[])
 		else audiobegin=nextframe(0);
 	}
 
-	audiobegin=nextframe(audiobegin-1); /* in case there is invalid data after a ID3 V2 tag */
+	audiobegin=nextframe(audiobegin-1); /* in case there is invalid data after an ID3 V2 tag */
 
 	startpos=inpoint=audiobegin;
 
@@ -2918,10 +2989,9 @@ int main(int argc, char *argv[])
 	if (userin!=0 && userout!=0)
 	{
 		nonint=1;
-		tablename="/tmp/timetable";
-		writetable(tablename);
-		cutfromtable(tablename,prefix);
-		remove("/tmp/timetable");
+		writetable();
+		cutfromtable(tblname,prefix);
+		remove(tblname);
 		exitseq(0);
 	}
 

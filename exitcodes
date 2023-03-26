@@ -10,3 +10,4 @@
 9 failed writing /tmp/cut.mp3
 10 failed writing $outname
 11 failed writing $tablename
+12 failed writing $logname

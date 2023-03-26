@@ -1,20 +1,20 @@
-.TH CUTMP3 1 "Jun 28, 2009" "cutmp3 2.0" "Utility Commands"
+.TH CUTMP3 1 "Jun 28, 2009" "cutmp3 2.0.1" "Utility Commands"
 .SH NAME
 cutmp3 \- a fast and leightweight mp3 editor
 .SH SYNOPSIS
 .B cutmp3
-[-i \fI<file>\fP]
-[-O \fI<file>\fP]
-[-a \fI<startpoint>\fP]
-[-b \fI<endpoint>\fP]
-[-f \fI<timetable>\fP]
-[-o \fI<output_prefix>\fP]
-[-I \fI<file> [-F]\fP]
-[-d 2]
-[-s \fI<factor>\fP]
--e
--c
--q
+[\-i \fI<file>\fP]
+[\-O \fI<file>\fP]
+[\-a \fI<startpoint>\fP]
+[\-b \fI<endpoint>\fP]
+[\-f \fI<timetable>\fP]
+[\-o \fI<output_prefix>\fP]
+[\-I \fI<file> [\-F]\fP]
+[\-d 2]
+[\-s \fI<factor>\fP]
+\-e
+\-c
+\-q
 .SH DESCRIPTION
 Cutmp3 is a small and fast command line MP3 editor. It lets you select sections
 of an MP3 interactively or via a timetable and save them to separate files
@@ -49,24 +49,24 @@ The timetable must have the following format:
 .br
 01:01.34 02:39.78
 .br
-1:0 -0:05
+1:0 \-0:05
 .br
 
 Negative values mean distance from the end of file.
-Note that the options [-a] and [-b] override a given timetable.
+Note that the options [\-a] and [\-b] override a given timetable.
 .IP "-e exact searching mode"
 Switch on exact searching mode, useful for VBR files.
 .br
-Note that [-a] [-b] and [-f] use exact mode as default.
+Note that [\-a] [\-b] and [\-f] use exact mode as default.
 .IP "-q quiet mode"
 Switch on quiet mode, cutmp3 won't make any sound, useful for debugging
-and commands using a pipe like: "echo 7a9bsq | cutmp3 -i file.mp3"
+and commands using a pipe like: "echo 7a9bsq | cutmp3 \-i file.mp3"
 .IP "-c copy metadata"
 Copies metadata in non-interactive mode. Useful to keep ID3 tags when
-using -a -b or -f.
+using \-a \-b or \-f.
 .IP "-s maximum silence length factor"
 Normally cutmp3 stops when the silence found is longer than 15 times
-the minimum silence length. [-s] changes this factor. 0 means infinity.
+the minimum silence length. [\-s] changes this factor. 0 means infinity.
 .IP "-d 2"
 use the second soundcard (/dev/dsp1)
 
@@ -112,12 +112,12 @@ or [*] in filenames will result in editing only the first file that matches.
 1) The resulting files will be written to blah0001.mp3, blah0002.mp3, blah0003.mp3
 and so on:
 
-    cutmp3 -i file.mp3 -o blah
+    cutmp3 \-i file.mp3 \-o blah
 
 2) If you only want to cut a file once and you know the times for start and the
 end, you type:
 
-    cutmp3 -i file.mp3 -a 0:37 -b 1:25
+    cutmp3 \-i file.mp3 \-a 0:37 \-b 1:25
 
 and cutmp3 will write the passage of file.mp3 starting at 0:37 and ending at
 1:25 to blah01.mp3
@@ -125,17 +125,17 @@ and cutmp3 will write the passage of file.mp3 starting at 0:37 and ending at
 3) If you want to cut a file more often, you need to create a file which
 contains a timetable and type (Please read README.timetable for details):
 
-    cutmp3 -i file.mp3 -f name_of_the_timetablefile
+    cutmp3 \-i file.mp3 \-f name_of_the_timetablefile
 
 4) Only print total number of frames, sampling frequency, number of channels,
 average bitrate, MPEG version and total time in milliseconds, in this order:
 
-    cutmp3 -F -I file.mp3
+    cutmp3 \-F \-I file.mp3
 
 5) If you want to clean an MP3 from any data that is not sound, just use
 (Cutting in interactive mode does _not_ remove invalid data!):
 
-    cutmp3 -i infile.mp3 -a 0:0 -b 99999:0
+    cutmp3 \-i infile.mp3 \-a 0:0 \-b 99999:0
 .SH ABOUT
 cutmp3 was written by Jochen Puchalla <mail at puchalla-online dot de>
 .br

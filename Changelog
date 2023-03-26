@@ -1,4 +1,9 @@
 
+version 2.0.1:
+security fixes
+The ':' is no longer mandatory for cutting by giving times
+manpage fixes, patch by Alessio Treglia
+
 version 2.0:
 added live time
 pressing 'l' toggles live time

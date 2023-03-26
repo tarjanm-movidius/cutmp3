@@ -16,9 +16,11 @@ like:
 0:0       -1:0
 ---- 8< cut here ----
 
-The ':' is mandatory!
+The ':' is no longer mandatory since cutmp3 2.0.1!
+Numbers only mean minutes then, but 3.7 means 3.7 seconds
+
 Negative time means distance from end of file.
-Syntax is NOT hh:mm:ss but mm:ss.subeconds
+Syntax is NOT hh:mm:ss but mm:ss.subseconds
 
 So writing a timetable should not be difficult, just use your common sense ;-)
 Since cutmp3 1.4 you _can_ use hundredths of a second in a timetable.
