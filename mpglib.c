@@ -72,8 +72,8 @@ int decode_header(struct frame * fr, unsigned long newhead)
     fr->sampling_frequency = ((newhead >> 10) & 0x3) + (fr->lsf * 3);
   fr->error_protection = ((newhead >> 16) & 0x1) ^ 0x1;
 
-  if (fr->mpeg25)		/* allow Bitrate change for 2.5 ... */
-    fr->bitrate_index = ((newhead >> 12) & 0xf);
+//  if (fr->mpeg25)		/* allow Bitrate change for 2.5 ... */
+//    fr->bitrate_index = ((newhead >> 12) & 0xf);
 
   fr->bitrate_index = ((newhead >> 12) & 0xf);
   fr->padding = ((newhead >> 9) & 0x1);
@@ -253,10 +253,10 @@ void init_layer3(int down_sample_sblimit)
   int i, j, k, l;
 
   for (i = -256; i < 118 + 4; i++)
-    gainpow2[i + 256] = pow((double) 2.0, -0.25 * (double) (i + 210));
+    gainpow2[i + 256] = pow((real) 2.0, -0.25 * (real) (i + 210));
 
   for (i = 0; i < 8207; i++)
-    ispow[i] = pow((double) i, (double) 4.0 / 3.0);
+    ispow[i] = pow((real) i, (real) 4.0 / 3.0);
 
   for (j = 0; j < 9; j++) {
     struct bandInfoStruct *bi = &bandInfo[j];
@@ -1011,8 +1011,7 @@ static int III_dequantize_sample(real xr[SBLIMIT][SSLIMIT], int *scf,
     }
 
     /* zero part */
-//    for (i = (&xr[SBLIMIT][0] - xrpnt) >> 1; i; i--) {
-    for (i = ((unsigned long long)xr + sizeof(double)*SBLIMIT*SSLIMIT - (unsigned long long)xrpnt) >> 1; i; i--) {
+    for (i = (int)((real*)xr + SBLIMIT*SSLIMIT - xrpnt) >> 1; i; i--) {
       *xrpnt++ = 0.0;
       *xrpnt++ = 0.0;
     }
@@ -1387,7 +1386,8 @@ unsigned int get_framelevel(FILE *zin, int framenum)
 {
 #define BSIZE 32768
   char buf[BSIZE];
-  long int len=0, ret;
+  unsigned long len=0;
+  int ret;
   long posn, filelen;
 
   if (gmp==NULL) InitMP3();
@@ -1418,7 +1418,7 @@ unsigned int get_framelevel(FILE *zin, int framenum)
     ret = decodeMP3(buf,len);
   if(mdebug==2)printf("after ret\n");
 
-  if(mdebug==2)printf("ret = %lu\n",ret);
+  if(mdebug==2)printf("ret = %d\n",ret);
 
     while (ret == MP3_OK) {
   if(mdebug==2)printf("ret = MP3_OK\n");

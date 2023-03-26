@@ -34,12 +34,12 @@ long nextframe(long seekpos);
 long prevframe(long seekpos);
 
 int showmins (long bytes);
-double showsecs (long bytes);
+//double showsecs (long bytes);
 
 long fforward (long seekpos,long skiptime);
 long frewind (long seekpos,long skiptime);
 
-double avbitrate(void);
+real avbitrate(void);
 long get_total_frames(void);
 unsigned int volume(long playpos);
 

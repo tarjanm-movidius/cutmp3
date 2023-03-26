@@ -34,13 +34,18 @@
 # define random rand
 # define srandom srand
 
+#else
+# define REAL_IS_FLOAT
 #endif
 
 #ifdef REAL_IS_FLOAT
+//# pragma message "REAL_IS_FLOAT"
 #  define real float
 #elif defined(REAL_IS_LONG_DOUBLE)
+//# pragma message "REAL_IS_LONG_DOUBLE"
 #  define real long double
 #else
+//# pragma message "REAL_IS_DOUBLE"
 #  define real double
 #endif
 
