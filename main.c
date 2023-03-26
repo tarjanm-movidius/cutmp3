@@ -1990,7 +1990,7 @@ void savesel(char *prefix)
 				if (number>99)
 				{
 					printf("\n\nFilename already exists 99 times.\nPlease save with tag (press t) and choose another title. \n");
-					return;
+					goto savesel_ret;
 				}
 				snprintf(outname,FN_LEN-1, "%s - %s_%02u.mp3",artist,title,number);
 				fp = fopen(outname,"r");
@@ -2011,12 +2011,12 @@ void savesel(char *prefix)
 			if (nonint==1)
 			{
 				fprintf(stdout,"  cutmp3: startpoint (%u:%05.2f) must be before end of file (%u:%05.2f)!  \n",pos2mins(inpoint),pos2secs(inpoint),pos2mins(filesize),pos2secs(filesize));
-				return;
+				goto savesel_ret;
 			}
 			else
 			{
 				printf("  ERROR: startpoint (%u:%05.2f) must be before end of file (%u:%05.2f)!  \n",pos2mins(inpoint),pos2secs(inpoint),pos2mins(filesize),pos2secs(filesize));
-				return;
+				goto savesel_ret;
 			}
 		}
 		if (inpoint < audiobegin)
@@ -2025,7 +2025,7 @@ void savesel(char *prefix)
 			{
 				fprintf(stdout,"  cutmp3: setting startpoint (%u:%05.2f) to beginning of file (%u:%05.2f)!  \n",pos2mins(inpoint),pos2secs(inpoint),pos2mins(audiobegin),pos2secs(audiobegin));
 				inpoint=audiobegin;
-				return;
+				goto savesel_ret;
 			}
 			else
 			{
@@ -2039,7 +2039,7 @@ void savesel(char *prefix)
 			{
 	// 			printf("%ld %ld",outpoint,filesize);
 				fprintf(stdout,"  cutmp3: setting endpoint (%u:%05.2f) to end of file (%u:%05.2f)!  \n",pos2mins(outpoint),pos2secs(outpoint),pos2mins(filesize),pos2secs(filesize));
-	// 			return;
+	// 			goto savesel_ret;
 			}
 			else
 			{
@@ -2052,12 +2052,12 @@ void savesel(char *prefix)
 			if (nonint==1)
 			{
 				fprintf(stdout,"  cutmp3: endpoint (%u:%05.2f) must be after startpoint (%u:%05.2f)!  \n",pos2mins(outpoint),pos2secs(outpoint),pos2mins(inpoint),pos2secs(inpoint));
-				return;
+				goto savesel_ret;
 			}
 			else
 			{
 				printf("  ERROR: endpoint (%u:%05.2f) must be after startpoint (%u:%05.2f)!  \n",pos2mins(outpoint),pos2secs(outpoint),pos2mins(inpoint),pos2secs(inpoint));
-				return;
+				goto savesel_ret;
 			}
 		}
 
@@ -2114,8 +2114,7 @@ void savesel(char *prefix)
  	{
 		overwrite=0;
 		zaptitle(); /* erase title name after saving */
-		free(outname);
-		return;
+		goto savesel_ret;
 	}
 
 	/* noninteractive cutting: */
@@ -2146,6 +2145,7 @@ void savesel(char *prefix)
 
 	overwrite=0;
 	zaptitle(); /* erase title name after saving */
+savesel_ret:
 	free(outname);
 	return;
 }
@@ -2185,7 +2185,7 @@ void savewithtag(void)
 	if (inpoint > filesize)
 	{
 		printf("  ERROR: startpoint (%u:%05.2f) must be before end of file (%u:%05.2f)!  \n",pos2mins(inpoint),pos2secs(inpoint),pos2mins(filesize),pos2secs(filesize));
-		return;
+		goto savewithtag_ret;
 	}
 	if (inpoint < audiobegin)
 	{
@@ -2200,7 +2200,7 @@ void savewithtag(void)
 	if (outpoint <= inpoint)
 	{
 		printf("  ERROR: endpoint (%u:%05.2f) must be after startpoint (%u:%05.2f)!  \n",pos2mins(outpoint),pos2secs(outpoint),pos2mins(inpoint),pos2secs(inpoint));
-		return;
+		goto savewithtag_ret;
 	}
 
 	/*********************************/
@@ -2416,7 +2416,7 @@ void savewithtag(void)
 			if (number>99)
 			{
 				printf("\n  File NOT written. Please choose another title.  \n");
-				return;
+				goto savewithtag_ret;
 			}
 			snprintf(newname,FN_LEN-1, "%s - %s_%02u.mp3",artist,title,number);
 			fp = fopen(newname,"r");
@@ -2436,6 +2436,7 @@ void savewithtag(void)
 	else printf("\n  saved %u:%02.0f - %u:%02.0f with ID3 V1 tag to '%s'.  \n",pos2mins(inpoint),pos2secs(inpoint),pos2mins(outpoint),pos2secs(outpoint),newname);
 
 	overwrite=0;
+savewithtag_ret:
 	free(tempartist);
 	free(temptitle);
 	free(tempalbum);

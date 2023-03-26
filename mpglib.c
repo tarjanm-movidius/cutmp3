@@ -1244,17 +1244,21 @@ static int read_buf_byte(struct mpstr * mp)
 
   int pos;
 
+  if (!mp || !mp->tail) {
+    fprintf(stderr, "   l.1245: Fatal error!\n");
+    exit(1);
+  }
   if(mdebug==5)printf("before pos = mp->tail->pos\n");
   pos = mp->tail->pos;
   if(mdebug==5)printf("before while (pos >= mp->tail->size)\n");
   while (pos >= mp->tail->size) {
     remove_buf(mp);
-    pos = mp->tail->pos;
-  if(mdebug==5)printf("before if (!mp->tail)\n");
     if (!mp->tail) {
       fprintf(stderr, "   l.1245: Fatal error!\n");
       exit(1);
     }
+    pos = mp->tail->pos;
+    if(mdebug==5)printf("before if (!mp->tail)\n");
   }
 
   if(mdebug==5)printf("before b = mp->tail->pnt[pos]\n");
