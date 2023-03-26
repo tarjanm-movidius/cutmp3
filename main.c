@@ -27,7 +27,9 @@
 /* 10 MB for VBR scanning */
 #define SCANAREA 10485759
 
-	int debug=0; // 1=volume 5=ID3tags 7=saving+cutting 9=seeksilence
+#ifdef DEBUG
+	int debug=0; // 1=volume, 2=operation, 5=ID3tags 7=saving+cutting 9=seeksilence
+#endif
 
 	unsigned int silencelength=1000, silvol=1;
 
@@ -116,6 +118,10 @@ void usage(char *text)
 	printf("\n  cutmp3 -i file.mp3 -d 2             use second sound card");
 	printf("\n  cutmp3 -i file.mp3 -s 0             no maximum silence length");
 	printf("\n  cutmp3 -I file.mp3 [-F]             prints file information [in raw mode]\n\n");
+#ifdef DEBUG
+	printf("  cutmp3 -D <n>                       Show debug prints:  0:none (default)\n");
+	printf("                                      1:volume, 2:operation, 5:ID3tags, 7:saving+cutting, 9:seeksilence\n\n");
+#endif
 	if (text && text[0]!='\0') printf("%s\n\n",text);
 }
 
@@ -160,7 +166,7 @@ int mpeg(unsigned char mpegnumber)
 		case (3<<3): return 1;
 		case (2<<3): return 2;
 	}
-	if(debug==2) printf("%s(0x%02hhX) Warning: reserved value\n", __func__, mpegnumber);
+	DBGPRINT(2, "%s(0x%02hhX) Warning: reserved value\n", __func__, mpegnumber);
 	return 0;
 }
 
@@ -202,7 +208,7 @@ int sampfreq(unsigned char secondbyte, unsigned char thirdbyte)
 	}
 
 	/* In case of an error, sampfreq=1 is returned */
-	if(debug==2) printf("%s(0x%02hhX, 0x%02hhX) Warning: reserved value\n", __func__, secondbyte, thirdbyte);
+	DBGPRINT(2, "%s(0x%02hhX, 0x%02hhX) Warning: reserved value\n", __func__, secondbyte, thirdbyte);
 	return 1;
 }
 
@@ -352,7 +358,7 @@ int bitrate(unsigned char secondbyte,unsigned char thirdbyte,unsigned char fourt
 	}
 
 	/* In case of an error, bitrate=1 is returned */
-	if(debug==2) printf("%s(0x%02hhX) Warning: reserved value\n", __func__, secondbyte);
+	DBGPRINT(2, "%s(0x%02hhX) Warning: reserved value\n", __func__, secondbyte);
 	return 1;
 }
 
@@ -368,7 +374,7 @@ int layer(unsigned char secondbyte)
 	}
 
 	/* In case of an error, layer=0 is returned */
-	if(debug==2) printf("%s(0x%02hhX) Warning: reserved value\n", __func__, secondbyte);
+	DBGPRINT(2, "%s(0x%02hhX) Warning: reserved value\n", __func__, secondbyte);
 	return 0;
 }
 
@@ -720,11 +726,11 @@ unsigned int volume(long playpos)
 	char volname[15] = "/tmp/volXXXXXX";
 	int fd=-1;
 
-	if (debug==1) printf("\nvolume(): before prevframe(playpos)");
+	DBGPRINT(1, "\nvolume(): before prevframe(playpos)");
 
 	for (i=0; i<framenum ; i++) playpos=prevframe(playpos);  /* step back framenum frames */
 
-	if (debug==1) printf("\nvolume(): after %ux prevframe %ld \n",framenum,playpos);
+	DBGPRINT(1, "\nvolume(): after %ux prevframe %ld \n",framenum,playpos);
 
 	if ((fd = mkstemp(volname)) == -1 || (NULL== (volfile = fdopen(fd, "w+b"))) )
 	{
@@ -741,7 +747,7 @@ unsigned int volume(long playpos)
 		{
 			/* seek next frame */
 			pos=nextframe(pos);
-			if (debug==1) printf("\nvolume(): pos=%ld\n",pos);
+			DBGPRINT(1, "\nvolume(): pos=%ld\n",pos);
 			fseek(mp3file, pos, SEEK_SET);
 //			a=fgetc(mp3file);
 			fgetc(mp3file);
@@ -750,7 +756,7 @@ unsigned int volume(long playpos)
 			d=fgetc(mp3file);
 			frsize=framesize(b,c,d);
 		}
-		if (debug==1) printf("\nvolume(): frsize=%u\n",frsize);
+		DBGPRINT(1, "\nvolume(): frsize=%u\n",frsize);
 		/* write this frame */
 		fseek(mp3file, pos, SEEK_SET);
 		for (i=0 ; i<frsize && pos+frsize<filesize ; i++)
@@ -762,11 +768,11 @@ unsigned int volume(long playpos)
 
 	/* get energy level */
 	fseek(volfile, 0, SEEK_SET);
-	if (debug==1) printf("volume(): before InitMP3() \n");
+	DBGPRINT(1, "volume(): before InitMP3() \n");
 	InitMP3();
-	if (debug==1) printf("volume(): before get_framelevel \n");
+	DBGPRINT(1, "volume(): before get_framelevel \n");
 	level = get_framelevel(volfile,framenum);
-	if (debug==1) printf("volume(): after get_framelevel \n");
+	DBGPRINT(1, "volume(): after get_framelevel \n");
 	if (level==MP3_ERR) level=65535;
 	if (level<0) level=(-1)*level;
 	if (level>65535) level=65535;
@@ -802,7 +808,7 @@ long seeksilence(long seekpos)
 		while ((vol=volume(seekpos)) >= silvol)
 		{
 			/* look for possible silence every silencelength milliseconds: */
-			if (debug==9) printf("\ncandidate seek at %ld   volume is %u\n",seekpos,vol);
+			DBGPRINT(9, "\ncandidate seek at %ld   volume is %u\n",seekpos,vol);
 			printf("\b\b\b\b\b\b\b%4u:%02.0f",frame2mins(framenumber),frame2secs(framenumber));
 			seekpos=fforward(seekpos,silencelength);
  			framenumber=pos2frame(seekpos);
@@ -813,7 +819,7 @@ long seeksilence(long seekpos)
 		}
 
 		/* we found a candidate! */
-		if (debug==9) printf("\ncandidate found at %ld   volume is %u.\n",seekpos,vol);
+		DBGPRINT(9, "\ncandidate found at %ld   volume is %u.\n",seekpos,vol);
 // 		printf("\b\b\b\b\b\b\b%4u:%02.0f",frame2mins(framenumber),frame2secs(framenumber)); unnötig;
 		silfirstfound=seekpos; /* remember first found silent frame */
 		framenumber=pos2frame(seekpos);
@@ -823,10 +829,10 @@ long seeksilence(long seekpos)
 		{
 			seekpos=nextframe(seekpos); framenumber++;
 			printf("\b\b\b\b\b\b\b%4u:%02.0f",frame2mins(framenumber),frame2secs(framenumber));
-			if (debug==9) printf("\nforward seek1 at %ld   volume is %u\n",seekpos,vol);
+			DBGPRINT(9, "\nforward seek1 at %ld   volume is %u\n",seekpos,vol);
 		}
 		silend=seekpos;
-		if (debug==9) printf("\nsilend at %ld   \n",silend);
+		DBGPRINT(9, "\nsilend at %ld   \n",silend);
 
 		/* quick check if silence is already long enough */
 		if (pos2time(silend)-pos2time(silfirstfound) >= silencelength)
@@ -838,15 +844,15 @@ long seeksilence(long seekpos)
 		/* rewind silencelength ms */
 		seekpos=frewind(seekpos,silencelength);
 		framenumber=pos2frame(seekpos);
-		if (debug==9) printf("\nrewind to %ld   \n",seekpos);
+		DBGPRINT(9, "\nrewind to %ld   \n",seekpos);
 
 		/* forward to last silent frame again and see if position is silend */
 		while ((vol=volume(seekpos)) < silvol && seekpos<dataend)
 		{
 			seekpos=nextframe(seekpos); framenumber++;
-			if (debug==9) printf("\nforward seek2 at %ld   volume is %u\n",seekpos,vol);
+			DBGPRINT(9, "\nforward seek2 at %ld   volume is %u\n",seekpos,vol);
 		}
-		if (debug==9) printf("\nafter seek2 at %ld   volume is %u\n",seekpos,vol);
+		DBGPRINT(9, "\nafter seek2 at %ld   volume is %u\n",seekpos,vol);
 		if (seekpos==silend) /* we found a silence */
 		{
 			framenumber--;
@@ -856,8 +862,8 @@ long seeksilence(long seekpos)
 		{
 			framenumber=pos2frame(silend);
 			seekpos=fforward(silend,silencelength);
-			if (debug==9) printf("\nfforward to %ld   \n",seekpos);
-			if (debug==9) printf("\nsilend at %ld   \n",silend);
+			DBGPRINT(9, "\nfforward to %ld   \n",seekpos);
+			DBGPRINT(9, "\nsilend at %ld   \n",silend);
 		}
 	}
 	framenumber=totalframes;
@@ -889,7 +895,7 @@ long seeksilstart(long seekpos)
 		while ((vol=volume(seekpos)) >= silvol)
 		{
 			/* look for possible silence every silencelength milliseconds: */
-			if (debug==9) printf("\ncandidate seek at %ld   volume is %u\n",seekpos,vol);
+			DBGPRINT(9, "\ncandidate seek at %ld   volume is %u\n",seekpos,vol);
 			printf("\b\b\b\b\b\b\b%4u:%02.0f",frame2mins(framenumber),frame2secs(framenumber));
 			seekpos=fforward(seekpos,silencelength);
  			framenumber=pos2frame(seekpos);
@@ -900,7 +906,7 @@ long seeksilstart(long seekpos)
 		}
 
 		/* we found a candidate! */
-		if (debug==9) printf("\ncandidate found at %ld   volume is %u.\n",seekpos,vol);
+		DBGPRINT(9, "\ncandidate found at %ld   volume is %u.\n",seekpos,vol);
 // 		printf("\b\b\b\b\b\b\b%4u:%02.0f",frame2mins(framenumber),frame2secs(framenumber)); unnötig;
 		silfirstfound=seekpos; /* remember first found silent frame */
 		framenumber=pos2frame(seekpos);
@@ -910,7 +916,7 @@ long seeksilstart(long seekpos)
 		while ((vol=volume(seekpos)) < silvol && seekpos<dataend)
 		{
 			seekpos=nextframe(seekpos); framenumber++;
-			if (debug==9) printf("\nforward seek at %ld   volume is %u\n",seekpos,vol);
+			DBGPRINT(9, "\nforward seek at %ld   volume is %u\n",seekpos,vol);
 			/* quick check if silence is already long enough */
 			if (framenumber-silfirstfoundframe >= silencelength/fix_frametime)
 			{
@@ -919,24 +925,24 @@ long seeksilstart(long seekpos)
 			}
 		}
 		silend=seekpos;
-		if (debug==9) printf("\nsilend at %ld   \n",silend);
+		DBGPRINT(9, "\nsilend at %ld   \n",silend);
 
 		/* rewind to first silent frame from first found silent frame */
 		seekpos=silfirstfound;
 		framenumber=pos2frame(silfirstfound);
-		if (debug==9) printf("\nrewind to %ld   \n",seekpos);
+		DBGPRINT(9, "\nrewind to %ld   \n",seekpos);
 		while ((vol=volume(seekpos)) < silvol && seekpos>audiobegin)
 		{
 			seekpos=prevframe(seekpos); framenumber--;
 			printf("\b\b\b\b\b\b\b%4u:%02.0f",frame2mins(framenumber),frame2secs(framenumber));
-			if (debug==9) printf("\nbackward seek at %ld   volume is %u\n",seekpos,vol);
+			DBGPRINT(9, "\nbackward seek at %ld   volume is %u\n",seekpos,vol);
 		}
 		silstart=seekpos;
-		if (debug==9) printf("\nsilend at %ld   \n",silend);
+		DBGPRINT(9, "\nsilend at %ld   \n",silend);
 
 		if (pos2time(silend)-pos2time(silstart) >= silencelength)
 		{
-			if (debug==9) printf("\nseeksilstart(): silend=%ld silstart=%ld\n",silend,silstart);
+			DBGPRINT(9, "\nseeksilstart(): silend=%ld silstart=%ld\n",silend,silstart);
 			framenumber++;
 			return frame2pos(framenumber);
 		}
@@ -945,7 +951,7 @@ long seeksilstart(long seekpos)
 		/* Do not find the same silence again! Jump to end of silence and seek on */
 		seekpos=nextframe(silend);
 		framenumber=pos2frame(seekpos);
-		if (debug==9) printf("\nseekpos=%ld dataend=%ld\n",seekpos,dataend);
+		DBGPRINT(9, "\nseekpos=%ld dataend=%ld\n",seekpos,dataend);
 	}
 	framenumber=totalframes;
 	return filesize; /* EOF */
@@ -1057,7 +1063,7 @@ long importid3v2(long seekpos)
 	long length=0, pos=0, i=0, j=0, bytesin=0;
 	int size=0, hasexthdr=0, exthdrsize=0, footerlength=0;
 	unsigned char a,b,c,d;
-	int revision, encoding=0;
+	int encoding=0;
 	int ssf=1; // synch safe factor
 
 	/* delete old stuff in case they are not overwritten: */
@@ -1067,11 +1073,11 @@ long importid3v2(long seekpos)
 	artist[0]='\0';
 	comment[0]='\0';
 
-	if (debug==5){printf("\n *debug* importid3v2 at %ld\n",seekpos);}
+	DBGPRINT(5, "\n *debug* importid3v2 at %ld\n",seekpos);
 
 	fseek(mp3file, seekpos, SEEK_SET);
 	length=skipid3v2(seekpos)-seekpos; /* skipid3v2 also checks if there is ID3 V2 */
-	if (debug==5){printf(" *debug* id3v2 length %ld \n",length);}
+	DBGPRINT(5, " *debug* id3v2 length %ld \n",length);
 	if (length >= ID3V2_BUFLEN){printf("ERROR:  id3v2 length %ld >= %u\n",length, ID3V2_BUFLEN);}
 	if (length==0) return 0; /* is not ID3 V2 */
 
@@ -1080,10 +1086,9 @@ long importid3v2(long seekpos)
 	for (bytesin=0 ; bytesin < length && bytesin<ID3V2_BUFLEN ; bytesin++) id3v2[bytesin]=fgetc(mp3file);
 
 	minorv=id3v2[3]; if (minorv==3) ssf=2;
-	revision=id3v2[4];
-	if (debug==5){printf("\n *debug* found ID3 version 2.%u.%u\n",minorv,revision);}
+	DBGPRINT(5, "\n *debug* found ID3 version 2.%u.%u\n", minorv, id3v2[4]);
 	a=b=id3v2[5]; /* flags byte */
-	if (debug==5){printf(" *debug* flags byte=%u ",a);}
+	DBGPRINT(5, " *debug* flags byte=%u ",a);
 
 	if (minorv>=3) hasexthdr=(a<<1)>>7; /* has extended header? */
 	if (minorv==4) footerlength=((b<<3)>>7)*10; /* has footer? */
@@ -1098,7 +1103,7 @@ long importid3v2(long seekpos)
 		d=id3v2[13];
 		pos=pos+4;
 		exthdrsize=a*128*128*128+b*128*128+c*128+d;
-		if (debug==5){printf("\n *debug* hasexthdr of size=%i\n",exthdrsize);}
+		DBGPRINT(5, "\n *debug* hasexthdr of size=%i\n",exthdrsize);
 	}
 	pos=10+exthdrsize;
 
@@ -1106,14 +1111,14 @@ long importid3v2(long seekpos)
 	{
 		while (pos<length)
 		{
-			if (debug==5){printf("\n *debug* loopstart pos=%ld length=%ld footerlength=%i\n",pos,length,footerlength);}
+			DBGPRINT(5, "\n *debug* loopstart pos=%ld length=%ld footerlength=%i\n",pos,length,footerlength);
 			if (pos+4>=length-footerlength) break;
 
 			while ((id3v2[pos]<48 || id3v2[pos]>90) && pos<length)
 			{
 				pos++;
 			}
-			if (debug==5){printf(" *debug* after alphanum pos=%ld\n",pos);}
+			DBGPRINT(5, " *debug* after alphanum pos=%ld\n",pos);
 
 			a=id3v2[pos];
 			b=id3v2[pos+1];
@@ -1121,8 +1126,8 @@ long importid3v2(long seekpos)
 			d=id3v2[pos+3];
 			pos=pos+4;
 
-			if (debug==5){printf("\n *debug* loopstart: %c%c%c%c\n",a,b,c,d);}
-			if (debug==5){printf("\n *debug* loopstart: a=%u b=%u c=%u d=%u\n",a,b,c,d);}
+			DBGPRINT(5, "\n *debug* loopstart: %c%c%c%c\n",a,b,c,d);
+			DBGPRINT(5, "\n *debug* loopstart: a=%u b=%u c=%u d=%u\n",a,b,c,d);
 
 
 			if (a=='T' && b=='I' && c=='T' && d=='2') /* read title */
@@ -1135,7 +1140,7 @@ long importid3v2(long seekpos)
 				size=a*128*ssf*128*ssf*128*ssf+b*128*ssf*128*ssf+c*128*ssf+d;
 				encoding=id3v2[pos]; pos++; size=size-1;
 				if (encoding==1){pos=pos+2; size=size-2;}
-				if (debug==5){printf(" *debug* frame size %d pos=%ld\n",size,pos);}
+				DBGPRINT(5, " *debug* frame size %d pos=%ld\n",size,pos);
 				i=0;
 				for (j=pos; j<pos+size && i<255; j++)
 				{
@@ -1144,7 +1149,7 @@ long importid3v2(long seekpos)
 				}
 				title[i]='\0';
 				pos=pos+size;
-				if (debug==5){printf(" *debug* Title: %s\n",title);}
+				DBGPRINT(5, " *debug* Title: %s\n",title);
 			}
 			else if (a=='T' && b=='P' && c=='E' && d=='1') /* read artist */
 			{
@@ -1156,7 +1161,7 @@ long importid3v2(long seekpos)
 				size=a*128*ssf*128*ssf*128*ssf+b*128*ssf*128*ssf+c*128*ssf+d;
 				encoding=id3v2[pos]; pos++; size=size-1;
 				if (encoding==1){pos=pos+2; size=size-2;}
-				if (debug==5){printf(" *debug* frame size %d pos=%ld\n",size,pos);}
+				DBGPRINT(5, " *debug* frame size %d pos=%ld\n",size,pos);
 				i=0;
 				for (j=pos; j<pos+size && i<255; j++)
 				{
@@ -1165,7 +1170,7 @@ long importid3v2(long seekpos)
 				}
 				artist[i]='\0';
 				pos=pos+size;
-				if (debug==5){printf(" *debug* Artist: %s\n",artist);}
+				DBGPRINT(5, " *debug* Artist: %s\n",artist);
 			}
 			else if (a=='T' && b=='Y' && c=='E' && d=='R') /* read year */
 			{
@@ -1177,7 +1182,7 @@ long importid3v2(long seekpos)
 				size=a*128*ssf*128*ssf*128*ssf+b*128*ssf*128*ssf+c*128*ssf+d;
 				encoding=id3v2[pos]; pos++; size=size-1;
 				if (encoding==1){pos=pos+2; size=size-2;}
-				if (debug==5){printf(" *debug* frame size %d pos=%ld\n",size,pos);}
+				DBGPRINT(5, " *debug* frame size %d pos=%ld\n",size,pos);
 				i=0;
 				for (j=pos; j<pos+size && i<255; j++)
 				{
@@ -1186,7 +1191,7 @@ long importid3v2(long seekpos)
 				}
 				year[i]='\0';
 				pos=pos+size;
-				if (debug==5){printf(" *debug* Year: %s\n",year);}
+				DBGPRINT(5, " *debug* Year: %s\n",year);
 			}
 			else if (a=='T' && b=='D' && c=='R' && d=='C') /* read year in 2.4.0 */
 			{
@@ -1198,7 +1203,7 @@ long importid3v2(long seekpos)
 				size=a*128*ssf*128*ssf*128*ssf+b*128*ssf*128*ssf+c*128*ssf+d;
 				encoding=id3v2[pos]; pos++; size=size-1;
 				if (encoding==1){pos=pos+2; size=size-2;}
-				if (debug==5){printf(" *debug* frame size %d pos=%ld\n",size,pos);}
+				DBGPRINT(5, " *debug* frame size %d pos=%ld\n",size,pos);
 				i=0;
 				for (j=pos; j<pos+size && i<255; j++)
 				{
@@ -1207,7 +1212,7 @@ long importid3v2(long seekpos)
 				}
 				year[i]='\0';
 				pos=pos+size;
-				if (debug==5){printf(" *debug* Year: %s\n",year);}
+				DBGPRINT(5, " *debug* Year: %s\n",year);
 			}
 			else if (a=='T' && b=='A' && c=='L' && d=='B') /* read album */
 			{
@@ -1219,7 +1224,7 @@ long importid3v2(long seekpos)
 				size=a*128*ssf*128*ssf*128*ssf+b*128*ssf*128*ssf+c*128*ssf+d;
 				encoding=id3v2[pos]; pos++; size=size-1;
 				if (encoding==1){pos=pos+2; size=size-2;}
-				if (debug==5){printf(" *debug* frame size %d pos=%ld\n",size,pos);}
+				DBGPRINT(5, " *debug* frame size %d pos=%ld\n",size,pos);
 				i=0;
 				for (j=pos; j<pos+size && i<255; j++)
 				{
@@ -1228,7 +1233,7 @@ long importid3v2(long seekpos)
 				}
 				album[i]='\0';
 				pos=pos+size;
-				if (debug==5){printf(" *debug* Album: %s\n",album);}
+				DBGPRINT(5, " *debug* Album: %s\n",album);
 			}
 			else if (a=='T' && b=='R' && c=='C' && d=='K') /* read track */
 			{
@@ -1240,7 +1245,7 @@ long importid3v2(long seekpos)
 				size=a*128*ssf*128*ssf*128*ssf+b*128*ssf*128*ssf+c*128*ssf+d;
 				encoding=id3v2[pos]; pos++; size=size-1;
 				if (encoding==1){pos=pos+2; size=size-2;}
-				if (debug==5){printf(" *debug* frame size %d pos=%ld\n",size,pos);}
+				DBGPRINT(5, " *debug* frame size %d pos=%ld\n",size,pos);
 				i=0;
 				for (j=pos; j<pos+size && i<255; j++)
 				{
@@ -1249,7 +1254,7 @@ long importid3v2(long seekpos)
 				}
 				track[i]='\0';
 				pos=pos+size;
-				if (debug==5){printf(" *debug* Track: %s\n",track);}
+				DBGPRINT(5, " *debug* Track: %s\n",track);
 			}
 			else if (a=='C' && b=='O' && c=='M' && d=='M') /* read comment */
 			{
@@ -1259,11 +1264,11 @@ long importid3v2(long seekpos)
 				d=id3v2[pos+3];
 				pos=pos+6; /* also skip 2 flag bytes */
 				size=a*128*ssf*128*ssf*128*ssf+b*128*ssf*128*ssf+c*128*ssf+d;
-				if (debug==5){printf(" *debug* frame size %d pos=%ld\n",size,pos);}
+				DBGPRINT(5, " *debug* frame size %d pos=%ld\n",size,pos);
 				encoding=id3v2[pos]; pos++; size=size-1;
 				pos=pos+3; size=size-3;// skip language info
 				while ((id3v2[pos]<32 || id3v2[pos]>253) && pos<length){pos++; size--;} // skip no-text-chars
-				if (debug==5){printf(" *debug* frame size %d pos=%ld\n",size,pos);}
+				DBGPRINT(5, " *debug* frame size %d pos=%ld\n",size,pos);
 				i=0;
 				for (j=pos; j<pos+size && i<255; j++)
 				{
@@ -1272,12 +1277,12 @@ long importid3v2(long seekpos)
 				}
 				comment[i]='\0';
 				pos=pos+size;
-				if (debug==5){printf(" *debug* Comment: %s\n",comment);}
+				DBGPRINT(5, " *debug* Comment: %s\n",comment);
 			}
 			else if (a>=48 && a<=90 && b>=48 && b<=90 && c>=48 && c<=90 && d>=48 && d<=90)
 			{
 				/* frame not important, so skip it */
-				if (debug==5){printf("\n *debug* skipped %c%c%c%c\n",a,b,c,d);}
+				DBGPRINT(5, "\n *debug* skipped %c%c%c%c\n",a,b,c,d);
 // 				{printf("\n* ignored ID3V2 frame named %c%c%c%c",a,b,c,d);}
 				a=id3v2[pos];
 				b=id3v2[pos+1];
@@ -1285,10 +1290,10 @@ long importid3v2(long seekpos)
 				d=id3v2[pos+3];
 				pos=pos+6; /* skip 2 flag bytes */
 				size=a*128*ssf*128*ssf*128*ssf+b*128*ssf*128*ssf+c*128*ssf+d;
-				if (debug==5){printf("\n *debug* skip size=%d length=%ld\n",size,length);}
+				DBGPRINT(5, "\n *debug* skip size=%d length=%ld\n",size,length);
 				if (pos+size>length) break;
 				pos=pos+size;
-				if (debug==5){printf("\n *debug* next pos=%ld \n",pos);}
+				DBGPRINT(5, "\n *debug* next pos=%ld \n",pos);
 			}
 		}
 	}
@@ -1960,7 +1965,7 @@ void savesel(char *prefix)
 	FILE *outfile=stdout;
 	long i;
 
-	if (debug==7) printf("savesel(): ss=%.2f es=%.2f ip=%ld op=%ld \n",startsecs,endsecs,inpoint,outpoint);
+	DBGPRINT(7, "savesel(): ss=%.2f es=%.2f ip=%ld op=%ld \n",startsecs,endsecs,inpoint,outpoint);
 
 	/* correct mins and secs */
 	if (startsecs>59.999){ do {startmins++; startsecs=startsecs-60;} while (startsecs>59.999);}
@@ -2310,7 +2315,7 @@ void savewithtag(void)
 	else if (tagver=='2') /* if chosen to copy ID3 V2 */
 	{
 		/* copy id3 v2 tag */
-		if (debug==5){printf(" ID3V2 length=%ld ",length);}
+		DBGPRINT(5, " ID3V2 length=%ld ",length);
 		if (length>0) for (i=0;i<length;i++) fputc(id3v2[i],outfile);
 
 		outpoint=rewind3v1(outpoint); /* remove possible V1 tag at end */
@@ -2540,30 +2545,30 @@ void cutexact(char *prefix)
 	real seektime;
 	long framenr;
 
-	if (debug==7) printf("cutexact()\n");
+	DBGPRINT(7, "cutexact()\n");
 
-	if (debug==7) printf(" %i %i %lf %i %i %lf \n",negstart,startmins,startsecs,negend,endmins,endsecs);
+	DBGPRINT(7, " %i %i %lf %i %i %lf \n",negstart,startmins,startsecs,negend,endmins,endsecs);
 
 	/* first look for inpoint */
 
-	if (debug==7) printf(" sm=%u ss=%lf \n",startmins,startsecs);
+	DBGPRINT(7, " sm=%u ss=%lf \n",startmins,startsecs);
 	if (negstart<0)
 	{
 		seektime=endtime-startmins*60000-startsecs*1000;
 		framenr=seektime/fix_frametime;
-		if (debug==7) printf(" st=%lf fn=%ld\n",seektime,framenr);
+		DBGPRINT(7, " st=%lf fn=%ld\n",seektime,framenr);
 		if (framenr<=0) inpoint=0;
 		else inpoint=frame2pos(framenr);
-		if (debug==7) printf(" ss=%.2f es=%.2f ip=%ld op=%ld fn=%ld\n",startsecs,endsecs,inpoint,outpoint,framenr);
+		DBGPRINT(7, " ss=%.2f es=%.2f ip=%ld op=%ld fn=%ld\n",startsecs,endsecs,inpoint,outpoint,framenr);
 	}
 	else
 	{
 		seektime=startmins*60000+startsecs*1000;
 		framenr=seektime/fix_frametime;
-		if (debug==7) printf(" st=%lf fn=%ld\n",seektime,framenr);
+		DBGPRINT(7, " st=%lf fn=%ld\n",seektime,framenr);
 		if (framenr>=totalframes) inpoint=filesize;
 		else inpoint=frame2pos(framenr);
-		if (debug==7) printf(" ss=%.2f es=%.2f ip=%ld op=%ld fn=%ld\n",startsecs,endsecs,inpoint,outpoint,framenr);
+		DBGPRINT(7, " ss=%.2f es=%.2f ip=%ld op=%ld fn=%ld\n",startsecs,endsecs,inpoint,outpoint,framenr);
 	}
 // 	printf("  inpoint=%ld",inpoint);
 
@@ -2574,27 +2579,27 @@ void cutexact(char *prefix)
 	{
 		seektime=endtime-endmins*60000-endsecs*1000;
 		framenr=seektime/fix_frametime;
-		if (debug==7) printf(" st=%lf fn=%ld\n",seektime,framenr);
+		DBGPRINT(7, " st=%lf fn=%ld\n",seektime,framenr);
 		if (framenr<=0) outpoint=0;
 		else outpoint=frame2pos(framenr);
-		if (debug==7) printf(" ss=%.2f es=%.2f ip=%ld op=%ld fn=%ld\n",startsecs,endsecs,inpoint,outpoint,framenr);
+		DBGPRINT(7, " ss=%.2f es=%.2f ip=%ld op=%ld fn=%ld\n",startsecs,endsecs,inpoint,outpoint,framenr);
 	}
 	else
 	{
 		seektime=endmins*60000+endsecs*1000;
 		framenr=seektime/fix_frametime;
-		if (debug==7) printf(" st=%lf fn=%ld\n",seektime,framenr);
+		DBGPRINT(7, " st=%lf fn=%ld\n",seektime,framenr);
 		if (framenr>=totalframes) outpoint=filesize;
 		else outpoint=frame2pos(framenr);
-		if (debug==7) printf(" ss=%.2f es=%.2f ip=%ld op=%ld fn=%ld\n",startsecs,endsecs,inpoint,outpoint,framenr);
+		DBGPRINT(7, " ss=%.2f es=%.2f ip=%ld op=%ld fn=%ld\n",startsecs,endsecs,inpoint,outpoint,framenr);
 	}
 
 	/* outpoint reached, now write file */
 
 //	printf("  saving selection...\n");
-	if (debug==7) printf(" ss=%.2f es=%.2f ip=%ld op=%ld fn=%ld\n",startsecs,endsecs,inpoint,outpoint,framenr);
+	DBGPRINT(7, " ss=%.2f es=%.2f ip=%ld op=%ld fn=%ld\n",startsecs,endsecs,inpoint,outpoint,framenr);
 	savesel(prefix);
-	if (debug==7) printf(" ss=%.2f es=%.2f ip=%ld op=%ld fn=%ld\n",startsecs,endsecs,inpoint,outpoint,framenr);
+	DBGPRINT(7, " ss=%.2f es=%.2f ip=%ld op=%ld fn=%ld\n",startsecs,endsecs,inpoint,outpoint,framenr);
 	startsecs=startmins=endsecs=endmins=0;
 	return;
 }
@@ -2630,7 +2635,7 @@ void cutfromtable(char *tablename, char *prefix)
 	startmins=endmins=0; /* minutes _must_ be given! */
 	negstart=negend=1;
 
-	if (debug==7) printf(" cutfromtable()\n");
+	DBGPRINT(7, " cutfromtable()\n");
 
 	timefile = fopen(tablename,"rb");
 	/* Load BUFFER Bytes into unsigned buffer[] */
@@ -2669,12 +2674,12 @@ void cutfromtable(char *tablename, char *prefix)
 		if (ttable[pos2]==46 && position==5) {endsecs=endmins; endmins=0; position=7;} /* . */
 		if (ttable[pos2]==46 && position==6) {position=7;} /* . */
 
-		if (debug==7) printf(" %i %i %lf %i %i %lf \n",negstart,startmins,startsecs,negend,endmins,endsecs);
+		DBGPRINT(7, " %i %i %lf %i %i %lf \n",negstart,startmins,startsecs,negend,endmins,endsecs);
 
 		/* space switches to read end or to cutexact() */
 		if (isspace(ttable[pos2]))  /* char is a whitespace */
 		{
-		if (debug==7) printf("whitespace %i %i %lf %i %i %lf \n",negstart,startmins,startsecs,negend,endmins,endsecs);
+		DBGPRINT(7, "whitespace %i %i %lf %i %i %lf \n",negstart,startmins,startsecs,negend,endmins,endsecs);
 			if (position==5 && endmins+endsecs > 0)  /* only minutes given, finish */
 			{
 				position=9;
@@ -2719,7 +2724,7 @@ void cutfromtable(char *tablename, char *prefix)
 		}
 
 		if (ttable[pos2]==255) pos2=BUFFER;
-		if (debug==7) printf("pos2=%u %i:%02.2f %i:%02.2f position=%u\n",pos2,startmins,startsecs,endmins,endsecs,position);
+		DBGPRINT(7, "pos2=%u %i:%02.2f %i:%02.2f position=%u\n",pos2,startmins,startsecs,endmins,endsecs,position);
 		pos2++;
 	}
 	while (pos2<BUFFER);
@@ -2868,9 +2873,11 @@ int main(int argc, char *argv[])
 				case 'd':
 					if (optarg!=0) card=atoi(optarg);
 					break;
+#ifdef DEBUG
 				case 'D':
 					if (optarg!=0) debug=atoi(optarg);
 					break;
+#endif
 				case 'e':
 // 					exactmode=1;
 					break;

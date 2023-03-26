@@ -20,8 +20,6 @@
 
 #include "mpglib.h"
 
-int mdebug=0; /* number to see debug printfs */
-
 /************************************************************************
  * 			Code from mpglib common.c			*
  ************************************************************************/
@@ -1134,17 +1132,17 @@ static long *frameoffset;	/* array of frame offsets */
 
 BOOL InitMP3(void)
 {
-  if(mdebug==7)printf("\nInitMP3");
-//  if(mdebug==7)printf("\ngmp=%u",gmp);
+  DBGPRINT(7, "\nInitMP3");
+//  DBGPRINT(7, "\ngmp=%u",gmp);
 
 // struct mpstr *gmp=NULL; /* from line 172 */
   if (gmp==NULL) {
      gmp=(struct mpstr *)malloc(sizeof(struct mpstr)*16); /* JP: changed malloc size by factor 16 */
-  if(mdebug==7)printf("\nafter gmp=(struct...");
+  DBGPRINT(7, "\nafter gmp=(struct...");
   }
   memset(gmp, 0, sizeof(struct mpstr)*16);
 //  memset(gmp, 0, sizeof(struct mpstr));
-  if(mdebug==7)printf("\nafter memset(gmp, 0,...");
+  DBGPRINT(7, "\nafter memset(gmp, 0,...");
 
 
   gmp->framesize = 0;
@@ -1155,9 +1153,9 @@ BOOL InitMP3(void)
   gmp->bsnum = 0;
   gmp->synth_bo = 1;
 
-  if(mdebug==7)printf("\nbefore init_layer3\n");
+  DBGPRINT(7, "\nbefore init_layer3\n");
   init_layer3(SBLIMIT);
-  if(mdebug==7)printf("\nafter init_layer3\n");
+  DBGPRINT(7, "\nafter init_layer3\n");
 
   return !0;
 }
@@ -1167,26 +1165,26 @@ void ExitMP3(void)
   struct buf *b, *bn;
 
   b = gmp->tail;
-  if(mdebug==6)printf("before while()\n");
+  DBGPRINT(6, "before while()\n");
   while (b) {
     free(b->pnt);
     bn = b->next;
     free(b);
     b = bn;
   }
-  if(mdebug==6)printf("after while()\n");
+  DBGPRINT(6, "after while()\n");
   free(framepower);
-  if(mdebug==6)printf("after free(framepower)\n");
+  DBGPRINT(6, "after free(framepower)\n");
   free(frameoffset);
-  if(mdebug==6)printf("after free(frameoffset)\n");
+  DBGPRINT(6, "after free(frameoffset)\n");
   free(gmp);
-  if(mdebug==6)printf("after free(gmp)\n");
+  DBGPRINT(6, "after free(gmp)\n");
   gmp=NULL;
   framepower=NULL;
   frameoffset=NULL;
   nxtframe=0;
   frameNum=0;
-  if(mdebug==6)printf("after frameNum=0\n");
+  DBGPRINT(6, "after frameNum=0\n");
 }
 
 static struct buf *addbuf(struct mpstr * mp, char *buf, int size)
@@ -1247,9 +1245,9 @@ static int read_buf_byte(struct mpstr * mp)
     fprintf(stderr, "   l.1245: Fatal error!\n");
     exit(1);
   }
-  if(mdebug==5)printf("before pos = mp->tail->pos\n");
+  DBGPRINT(5, "before pos = mp->tail->pos\n");
   pos = mp->tail->pos;
-  if(mdebug==5)printf("before while (pos >= mp->tail->size)\n");
+  DBGPRINT(5, "before while (pos >= mp->tail->size)\n");
   while (pos >= mp->tail->size) {
     remove_buf(mp);
     if (!mp->tail) {
@@ -1257,19 +1255,19 @@ static int read_buf_byte(struct mpstr * mp)
       exit(1);
     }
     pos = mp->tail->pos;
-    if(mdebug==5)printf("before if (!mp->tail)\n");
+    DBGPRINT(5, "before if (!mp->tail)\n");
   }
 
-  if(mdebug==5)printf("before b = mp->tail->pnt[pos]\n");
-  if(mdebug==5)printf("pos=%i\n",pos);
+  DBGPRINT(5, "before b = mp->tail->pnt[pos]\n");
+  DBGPRINT(5, "pos=%i\n",pos);
   b = mp->tail->pnt[pos];
-  if(mdebug==5)printf("before mp->bsize--\n");
+  DBGPRINT(5, "before mp->bsize--\n");
   mp->bsize--;
-  if(mdebug==5)printf("before mp->tail->pos++\n");
+  DBGPRINT(5, "before mp->tail->pos++\n");
   mp->tail->pos++;
 
 
-  if(mdebug==5)printf("before return b\n");
+  DBGPRINT(5, "before return b\n");
   return b;
 }
 
@@ -1280,16 +1278,16 @@ static void read_head(struct mpstr * mp)
 {
   unsigned long head=0;
 
-  if(mdebug==4)printf("before head = read_buf_byte(mp)\n");
+  DBGPRINT(4, "before head = read_buf_byte(mp)\n");
   head = read_buf_byte(mp);
   head <<= 8;
-  if(mdebug==4)printf("before head |= read_buf_byte(mp)\n");
+  DBGPRINT(4, "before head |= read_buf_byte(mp)\n");
   head |= read_buf_byte(mp);
   head <<= 8;
-  if(mdebug==4)printf("before head |= read_buf_byte(mp)\n");
+  DBGPRINT(4, "before head |= read_buf_byte(mp)\n");
   head |= read_buf_byte(mp);
   head <<= 8;
-  if(mdebug==4)printf("before head |= read_buf_byte(mp)\n");
+  DBGPRINT(4, "before head |= read_buf_byte(mp)\n");
   head |= read_buf_byte(mp);
 
   mp->header = head;
@@ -1307,31 +1305,31 @@ int decodeMP3(char *in, int isize)
     }
   }
 
-  if(mdebug==3)printf("before first decode header\n");
+  DBGPRINT(3, "before first decode header\n");
     /* First decode header */
   if (gmp->framesize == 0) {
     if (gmp->bsize < 4) {
       return MP3_NEED_MORE;
     }
-  if(mdebug==3)printf("before read_head(gmp)\n");
+  DBGPRINT(3, "before read_head(gmp)\n");
       read_head(gmp);
-  if(mdebug==3)printf("before decode_header(&gmp->fr, gmp->header)\n");
+  DBGPRINT(3, "before decode_header(&gmp->fr, gmp->header)\n");
       decode_header(&gmp->fr, gmp->header);
 //      decode_header(&gmp->fr, 0);
-  if(mdebug==3)printf("before gmp->framesize = gmp->fr.framesize\n");
+  DBGPRINT(3, "before gmp->framesize = gmp->fr.framesize\n");
       gmp->framesize = gmp->fr.framesize;
-  if(mdebug==3)printf("before Hoffset+=gmp->fr.framesize\n");
+  DBGPRINT(3, "before Hoffset+=gmp->fr.framesize\n");
       Hoffset+=gmp->fr.framesize;
   }
   if (gmp->fr.framesize > gmp->bsize)
     return MP3_NEED_MORE;
-  if(mdebug==3)printf("after return MP3_NEED_MORE\n");
+  DBGPRINT(3, "after return MP3_NEED_MORE\n");
 
   wordpointer = gmp->bsspace[gmp->bsnum] + 512;
   gmp->bsnum = (gmp->bsnum + 1) & 0x1;
   bitindex = 0;
 
-  if(mdebug==3)printf("before len=0\n");
+  DBGPRINT(3, "before len=0\n");
   len = 0;
   while (len < gmp->framesize) {
     int nlen;
@@ -1351,7 +1349,7 @@ int decodeMP3(char *in, int isize)
     }
   }
 
-  if(mdebug==3)printf("before gmp->fr.error_protection\n");
+  DBGPRINT(3, "before gmp->fr.error_protection\n");
   if (gmp->fr.error_protection)
     getbits(16);
   do_layer3(&gmp->fr);
@@ -1391,42 +1389,42 @@ unsigned int get_framelevel(FILE *zin, int framenum)
   long posn, filelen;
 
   if (gmp==NULL) InitMP3();
-//  if(mdebug==2)printf("gmp = %u\n",gmp);
+//  DBGPRINT(2, "gmp = %u\n",gmp);
 
-  if(mdebug==2)printf("framenum = %i\n",framenum);
+  DBGPRINT(2, "framenum = %i\n",framenum);
   if (framenum<0) return(MP3_ERR);
-//  if(mdebug==2)printf("framepower = %u\n",framepower);
+//  DBGPRINT(2, "framepower = %u\n",framepower);
   if ((framepower!=NULL) && (framenum>=maxframe)) return(MP3_ERR);
 //printf("nxtframe = %u\n",nxtframe);
 //printf(" maxframe = %u\n",maxframe);
   if ((framepower!=NULL) && (framenum<nxtframe))
 			return((int)framepower[framenum]);
 
-  if(mdebug==2)printf(" nicht return \n");
+  DBGPRINT(2, " nicht return \n");
 
   while(1) {
     if (feof(zin)) return(MP3_ERR);
     len = fread(buf,sizeof(char), BSIZE, zin);
 
-  if(mdebug==2)printf("len = %lu\n",len);
+  DBGPRINT(2, "len = %lu\n",len);
 
-//  if(mdebug==2)printf("framepower = %u\n",framepower);
+//  DBGPRINT(2, "framepower = %u\n",framepower);
     if (len <= 0) break;
-//  if(mdebug==2)printf("framepower = %u\n",framepower);
+//  DBGPRINT(2, "framepower = %u\n",framepower);
     if (framepower==NULL) { Hoffset=0; maxframepower=0; }
-  if(mdebug==2)printf("before ret\n");
+  DBGPRINT(2, "before ret\n");
     ret = decodeMP3(buf,len);
-  if(mdebug==2)printf("after ret\n");
+  DBGPRINT(2, "after ret\n");
 
-  if(mdebug==2)printf("ret = %d\n",ret);
+  DBGPRINT(2, "ret = %d\n",ret);
 
     while (ret == MP3_OK) {
-  if(mdebug==2)printf("ret = MP3_OK\n");
+  DBGPRINT(2, "ret = MP3_OK\n");
 		/* Before saving the value, create the array if
 		 * it doesn't exist yet
 		 */
 	if (framepower==NULL) {
-  if(mdebug==2)printf("framepower==NULL\n");
+  DBGPRINT(2, "framepower==NULL\n");
 	   posn=ftell(zin);
 	   fseek(zin, 0, SEEK_END);
 	   filelen=ftell(zin);

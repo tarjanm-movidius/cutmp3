@@ -6,6 +6,7 @@ DATADIR=${PREFIX}/share
 MANDIR=${PREFIX}/share/man/man1
 DOCDIR=${DATADIR}/doc/${NAME}-${VERSION}
 CFLAGS?=-Wall
+#CFLAGS+=-DDEBUG
 
 all:
 	@echo -e "\n\n*** You need readline-devel, ncurses-devel or similar to compile ${NAME} ***\n*** Maybe you want to try the binary on compile failures? ***\n\n"

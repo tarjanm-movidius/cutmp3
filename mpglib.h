@@ -22,6 +22,20 @@
 
 #include        <math.h>
 
+
+#ifdef DEBUG
+extern int debug;
+# define DBGPRINT(lvl_, ...) { \
+	if(debug == (lvl_)) { \
+		printf(__VA_ARGS__); \
+		fflush(stdout); \
+	} \
+}
+#else
+# define DBGPRINT(...)
+#endif
+
+
 #ifdef _WIN32
 # undef WIN32
 # define WIN32
