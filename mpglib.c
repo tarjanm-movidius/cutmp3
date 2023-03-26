@@ -1048,16 +1048,19 @@ int do_layer3(struct frame * fr)
   int single = fr->single;
   int ms_stereo, i_stereo;
   int sfreq = fr->sampling_frequency;
-  int stereo1, granules;
+  int granules;
   real energy = 0.0;
 
-  if (stereo == 1) {		/* stream is mono */
+/*
+  int stereo1;
+  if (stereo == 1) {		/ * stream is mono * /
     stereo1 = 1;
     single = 0;
-  } else if (single >= 0)	/* stream is stereo, but force to mono */
+  } else if (single >= 0)	/ * stream is stereo, but force to mono * /
     stereo1 = 1;
   else
     stereo1 = 2;
+*/
 
   if (fr->mode == MPG_MD_JOINT_STEREO) {
     ms_stereo = fr->mode_ext & 0x2;

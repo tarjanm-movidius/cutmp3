@@ -16,8 +16,8 @@
 
 #include "cutmp3.h"
 
-#define VERSION "3.0.1"
-#define YEAR "2015"
+#define VERSION "3.0.2"
+#define YEAR "2022"
 
 /* general buffersize */
 #define BUFFER 32000
@@ -93,6 +93,9 @@ void exitseq(int foobar)
  	remove(logname);
 
 	exit(foobar);  /* now really exit */
+
+	(void)ht;
+	(void)htc;
 }
 
 void usage(char *text)
@@ -710,7 +713,8 @@ double avbitrate(void)
    of one frame. Taken from mpglib and mpcut. */
 unsigned int volume(long playpos)
 {
-	unsigned char a,b,c,d;
+//	unsigned char a,b,c,d;
+	unsigned char b,c,d;
 	unsigned int level, framenum=4;
 	int i, frsize;
 	long pos;
@@ -742,7 +746,8 @@ unsigned int volume(long playpos)
 			pos=nextframe(pos);
 			if (debug==1) printf("\nvolume(): pos=%ld\n",pos);
 			fseek(mp3file, pos, SEEK_SET);
-			a=fgetc(mp3file);
+//			a=fgetc(mp3file);
+			fgetc(mp3file);
 			b=fgetc(mp3file);
 			c=fgetc(mp3file);
 			d=fgetc(mp3file);
@@ -1392,7 +1397,8 @@ long importid3v2(long seekpos)
 				}
 				pos=pos+size;
 			}
-			else if (a>=48 && a<=90 && b>=48 && b<=90 && c>=48 && c<=90 && d>=48 && d<=90)
+//			else if (a>=48 && a<=90 && b>=48 && b<=90 && c>=48 && c<=90 && d>=48 && d<=90)
+			else if (a>=48 && a<=90 && b>=48 && b<=90 && c>=48 && c<=90)
 			{
 				/* frame not important, so skip it */
 				a=id3v2[pos];
@@ -1951,9 +1957,9 @@ void savesel(char *prefix)
 	long bytesin=0;
 	long endm, startm;
 	double ends, starts;
-	int a;
+//	int a;
 	FILE *fp;
-	FILE *outfile;
+	FILE *outfile=stdout;
 	long i;
 
 	if (debug==7) printf("savesel(): ss=%.2f es=%.2f ip=%ld op=%ld \n",startsecs,endsecs,inpoint,outpoint);
@@ -2153,7 +2159,8 @@ void savewithtag(void)
 	char *tempcomment=malloc(8191);
 	char *title1=malloc(8191); /* Title from Tag V1 */
 	char *title2=malloc(8191); /* Title from Tag V2 */
-	int i, a, tagver=0, hasid3=0, hastag=0, number=1;
+//	int a;
+	int i, tagver=0, hasid3=0, hastag=0, number=1;
 	char outname[8191]="cutmp3.tmp";
 	char outname2[8191]="\0";
 	char *newname=outname2;
@@ -2616,7 +2623,8 @@ void writetable()
 /* This function copies selections when using a timetable */
 void cutfromtable(char *tablename, char *prefix)
 {
-	int pos2, position=1, linenumber=1;
+	int pos2, position=1;
+//	int linenumber=1;
 	double number=0;
 
 	startsecs=endsecs=0; /* seconds _may_ be given */
@@ -2679,7 +2687,8 @@ void cutfromtable(char *tablename, char *prefix)
 				if (startsecs>59.999){ do {startmins++; startsecs=startsecs-60;} while (startsecs>59.999);}
 				if (endsecs>59.999) { do {endmins++; endsecs=endsecs-60;} while (endsecs>59.999);}
 
-				if (a_b_used!=1) printf(" using timetable \"%s\" line %i:\n",tablename,linenumber);linenumber++;
+//				if (a_b_used!=1) printf(" using timetable \"%s\" line %i:\n",tablename,linenumber);linenumber++;
+				if (a_b_used!=1) printf(" using timetable \"%s\"\n",tablename);
 				if (endmins*negend>totalmins)
 				{
 					printf("  WARNING: setting endpoint (%i:%05.2f) to end of file (%u:%05.2f)!  \n",endmins,endsecs,pos2mins(filesize),pos2secs(filesize));
@@ -2769,7 +2778,8 @@ void showfileinfo(int rawmode, int fix_channels)
 
 void showdebug(long seekpos, char *prefix)
 {
-	int a,b,c,d;
+//	int a,b,c,d;
+	int b,c,d;
 
 	printf("\n\nfile name is %s\n",filename);
 	printf("audiobegin is at      %10i\n",audiobegin);
@@ -2780,7 +2790,8 @@ void showdebug(long seekpos, char *prefix)
 	printf("inpoint is            %10li\n",inpoint);
 	printf("outpoint is           %10li\n",outpoint);
 	fseek(mp3file, seekpos, SEEK_SET);
-	a=fgetc(mp3file);
+//	a=fgetc(mp3file);
+	fgetc(mp3file);
 	b=fgetc(mp3file);
 	c=fgetc(mp3file);
 	d=fgetc(mp3file);
@@ -2813,7 +2824,8 @@ void showdebug(long seekpos, char *prefix)
 
 int main(int argc, char *argv[])
 {
-	int a,b,c,d,char1,showinfo=0,rawmode=0,fix_channels=0;
+//	int a;
+	int b,c,d,char1,showinfo=0,rawmode=0,fix_channels=0;
 	long pos, startpos;
 	double ft_factor=2;
 	char *tablename=malloc(8191);
@@ -2870,7 +2882,7 @@ int main(int argc, char *argv[])
 						perror(optarg);
 						exitseq(3);
 					}
-					else tablename=optarg; hastable=1;
+					else { tablename=optarg; hastable=1; }
 					break;
 				case 'h':
 					usage("");
@@ -2946,7 +2958,8 @@ int main(int argc, char *argv[])
 	else
 	{
 		fseek(mp3file, 0, SEEK_SET);
-		a=fgetc(mp3file);
+//		a=fgetc(mp3file);
+		fgetc(mp3file);
 		b=fgetc(mp3file);
 		c=fgetc(mp3file);
 		d=fgetc(mp3file);
