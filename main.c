@@ -16,7 +16,7 @@
 
 #include "cutmp3.h"
 
-#define VERSION "3.0"
+#define VERSION "3.0.1"
 #define YEAR "2015"
 
 /* general buffersize */
@@ -2575,7 +2575,7 @@ void cutexact(char *prefix)
 	}
 	else
 	{
-		seektime=startmins*60000+startsecs*1000;
+		seektime=endmins*60000+endsecs*1000;
 		framenr=seektime/fix_frametime;
 		if (debug==7) printf(" st=%lf fn=%ld\n",seektime,framenr);
 		if (framenr>=totalframes) outpoint=filesize;

@@ -1,4 +1,7 @@
 
+version 3.0.1:
+fix for non-interactive mode by Richard Fuchs
+
 version 3.0:
 cutmp3 always uses exact times now, without being slow
 improved silence seeking
