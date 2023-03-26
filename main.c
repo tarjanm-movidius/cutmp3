@@ -154,63 +154,55 @@ void help(void)
 /* Type is in bits nr. 11&12 */
 int mpeg(unsigned char mpegnumber)
 {
-//	printf("  mpeg()");
-
-	mpegnumber = mpegnumber << 3;
-	mpegnumber = mpegnumber >> 6;
-//	printf("\nmpegnumber:%u",mpegnumber);
-	if (mpegnumber==0) return 3; /* MPEG2.5 bits are 00 */
-	if (mpegnumber==3) return 1; /* MPEG1   bits are 11 */
-	if (mpegnumber==2) return 2; /* MPEG2   bits are 10 ; 01 is reserved */
-//	printf("%s(0x%02hhX) Warning: reserved value\n", __func__, mpegnumber);
+	switch (mpegnumber & (0x3 << 3))
+	{
+		case (0<<3): return 3;
+		case (3<<3): return 1;
+		case (2<<3): return 2;
+	}
+	if(debug==2) printf("%s(0x%02hhX) Warning: reserved value\n", __func__, mpegnumber);
 	return 0;
 }
 
 
 int crc(unsigned char crcbyte)
 {
-//	printf("  crc()");
-
-	crcbyte = crcbyte << 7;
-	crcbyte = crcbyte >> 7;
-	/* if bit is _not_ set, there is a 16 bit CRC after the header! */
-	return 1-crcbyte;
+	if (crcbyte & 0x1)
+		return 0;
+	else
+		return 1;
 }
 
 
 int sampfreq(unsigned char secondbyte, unsigned char thirdbyte)
 {
-	unsigned char sampfreqnumber;
-	int MPEG=mpeg(secondbyte);
-
-//	printf("  sampfreq()");
-
-	sampfreqnumber=thirdbyte;
-	sampfreqnumber=sampfreqnumber<<4;
-	sampfreqnumber=sampfreqnumber>>6;
-
-	if (MPEG==1)
+	switch (mpeg(secondbyte))
 	{
-		if (sampfreqnumber==0) return 44100;
-		if (sampfreqnumber==1) return 48000;
-		if (sampfreqnumber==2) return 32000;
+		case 1:
+			switch(thirdbyte & (0x3<<2))
+			{
+				case (0<<2): return 44100;
+				case (1<<2): return 48000;
+				case (2<<2): return 32000;
+			}
+		case 2:
+			switch(thirdbyte & (0x3<<2))
+			{
+				case (0<<2): return 22050;
+				case (1<<2): return 24000;
+				case (2<<2): return 16000;
+			}
+		case 3: // MPEG2.5
+			switch(thirdbyte & (0x3<<2))
+			{
+				case (0<<2): return 11025;
+				case (1<<2): return 12000;
+				case (2<<2): return 8000;
+			}
 	}
-	if (MPEG==2)
-	{
-		if (sampfreqnumber==0) return 22050;
-		if (sampfreqnumber==1) return 24000;
-		if (sampfreqnumber==2) return 16000;
-	}
-	if (MPEG==3) /* MPEG2.5 */
-	{
-		if (sampfreqnumber==0) return 11025;
-		if (sampfreqnumber==1) return 12000;
-		if (sampfreqnumber==2) return 8000;
-	}
-//	printf("\nsecbyte:%u mpeg:%u sampfreqnumber:%u",secondbyte,MPEG,sampfreqnumber);
 
 	/* In case of an error, sampfreq=1 is returned */
-//	printf("%s(0x%02hhX, 0x%02hhX) Warning: reserved value\n", __func__, secondbyte, thirdbyte);
+	if(debug==2) printf("%s(0x%02hhX, 0x%02hhX) Warning: reserved value\n", __func__, secondbyte, thirdbyte);
 	return 1;
 }
 
@@ -360,35 +352,33 @@ int bitrate(unsigned char secondbyte,unsigned char thirdbyte,unsigned char fourt
 	}
 
 	/* In case of an error, bitrate=1 is returned */
-//	printf("%s(0x%02hhX) Warning: reserved value\n", __func__, secondbyte);
+	if(debug==2) printf("%s(0x%02hhX) Warning: reserved value\n", __func__, secondbyte);
 	return 1;
 }
 
 
 int layer(unsigned char secondbyte)
 {
-	unsigned char layernumber;
-
-	secondbyte = secondbyte<<5;
-	layernumber = secondbyte>>6;
-	switch (layernumber)
+	switch (secondbyte & (0x3<<1))
 	{
-		case 1: return 3;
-		case 2: return 2;
-// 		case 2: {printf("\nFile is an MP2, not am MP3.\n"); exitseq(99);}
-		case 3: return 1;
+		case (1<<1): return 3;
+		case (2<<1): return 2;
+// 		case (2<<1): {printf("\nFile is an MP2, not am MP3.\n"); exitseq(99);}
+		case (3<<1): return 1;
 	}
+
 	/* In case of an error, layer=0 is returned */
+	if(debug==2) printf("%s(0x%02hhX) Warning: reserved value\n", __func__, secondbyte);
 	return 0;
 }
 
 
 int paddingbit(unsigned char thirdbyte)
 {
-	unsigned char temp;
-
-	temp=thirdbyte<<6;
-	return temp>>7;
+	if (thirdbyte & 0x1<<1)
+		return 1;
+	else
+		return 0;
 }
 
 
