@@ -1,11 +1,3 @@
 fading would be great
 
-remove VBR file length info
-  TLEN
-   The 'Length' frame contains the length of the audio file in
-   milliseconds, represented as a numeric string.
--> copyid3v2()
-
-create ID3V2
-
-support Xing header
+fix volume()

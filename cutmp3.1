@@ -1,4 +1,4 @@
-.TH CUTMP3 1 "Oct 3, 2014" "cutmp3 2.1.2" "Utility Commands"
+.TH CUTMP3 1 "Mar 28, 2015" "cutmp3 3.0" "Utility Commands"
 .SH NAME
 cutmp3 \- a fast and leightweight mp3 editor
 .SH SYNOPSIS
@@ -12,8 +12,9 @@ cutmp3 \- a fast and leightweight mp3 editor
 [\-I \fI<file> [\-F]\fP]
 [\-d 2]
 [\-s \fI<factor>\fP]
-\-e
 \-c
+\-C
+\-k
 \-q
 .SH DESCRIPTION
 Cutmp3 is a small and fast command line MP3 editor. It lets you select sections
@@ -54,16 +55,16 @@ The timetable must have the following format:
 
 Negative values mean distance from the end of file.
 Note that the options [\-a] and [\-b] override a given timetable.
-.IP "-e exact searching mode"
-Switch on exact searching mode, useful for VBR files.
-.br
-Note that [\-a] [\-b] and [\-f] use exact mode as default.
 .IP "-q quiet mode"
 Switch on quiet mode, cutmp3 won't make any sound, useful for debugging
 and commands using a pipe like: "echo 7a9bsq | cutmp3 \-i file.mp3"
 .IP "-c copy metadata"
 Copies metadata in non-interactive mode. Useful to keep ID3 tags when
 using \-a \-b or \-f.
+.IP "-C do not copy metadata"
+Prevents copying any metadata.
+.IP "-k keep old filename"
+Keeps old filename and full path and appends 0001.mp3, etc.
 .IP "-s maximum silence length factor"
 Normally cutmp3 stops when the silence found is longer than 15 times
 the minimum silence length. [\-s] changes this factor. 0 means infinity.

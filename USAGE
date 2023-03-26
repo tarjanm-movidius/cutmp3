@@ -2,10 +2,10 @@
 By calling "cutmp3" you will get this:
 
 
-cutmp3  version 2.1.2
+cutmp3  version 3.0
 
 Usage:  cutmp3 -i file.mp3 [-a inpoint] [-b outpoint] [-f timetable]
-                           [-o outputprefix] [-e] [-c] [-C] [-q]
+                           [-o outputprefix] [-c] [-C] [-k] [-q]
 
   cutmp3 -i file.mp3 -a 0:37 -b 3:57  copies valid data from 0:37 to 3:57
   cutmp3 -i file.mp3 -f timetable     copies valid data described in timetable
@@ -30,12 +30,12 @@ after pressing 'b' will then be the last second inside the new file).
 By typing 's' the resulting file will be written to result0001.mp3. If it already exists,
 cutmp3 will increase the number to result0002.mp3, result0003.mp3 and so on.
 
--e  switches on exact searching mode, useful for VBR files (-a -b and -f  always use the exact mode)
 -c  copies metadata in non-interactive mode
 -C  ignores given metadata for the output filename in non-interactive mode
+-k  keeps old filename and full path and appends 0001.mp3, etc.
 -s  changes the maximum silence length factor, 0 means infinity
 -q  switches on quiet mode, cutmp3 won't make any sound, useful for debugging
-    and piped commands like:  "echo 7a9bsq | cutmp3 -i file.mp3"
+    and piped commands like:  "echo 7a9bsq | cutmp3 -q -i file.mp3"
 
 *** CLEVER KEYCODES IN cutmp3: ***
 You can seek to the end of the next silence by pressing 'p' (for pause)

@@ -46,15 +46,47 @@ unsigned int volume(long playpos);
 long seeksilence(long seekpos);
 long seeksilstart(long seekpos);
 
-long importid3(long seekpos);
+/* This function prints the reached ID3 V1 TAG,
+   argument is next byte after tag */
+void showtag(long seekpos);
+
+/* This function prints the reached ID3 V1 TAG */
+void print_id3v1(long seekpos);
+
+/* This function prints the reached ID3 V2 TAG */
+void print_id3v2(long showpos);
+
+/* This function rewinds to before ID3V1 tag, if any.
+   Returns position of last byte before tag. */
+long rewind3v1(long seekpos);
+
+/* This function rewinds max 100kB to before ID3V2 tag, if any.
+   Returns position of first byte of tag. */
+long rewind3v2(long seekpos);
+
+/* This function gets data from ID3 V1 and returns its length,
+   argument is end of tag */
+int importid3v1(long seekpos);
+
+/* This function gets data from ID3 V2 and returns its length,
+   argument is start of tag */
+long importid3v2(long seekpos);
+
+/* This function skips ID3 V1 tag, if any.
+   Returns position of next byte after tag. */
+long skipid3v1(long seekpos);
+
+/* This function skips ID3 V2 tag, if any.
+   Useful also for getting the length of the ID3 V2 tag.
+   Returns position of next byte after tag. */
 long skipid3v2(long seekpos);
-long showid3(long showpos);
-void copyid3(long startpos, long endpos);
+
+/* This function returns the position of the next ID3 TAG,
+   next byte after V1 and first byte of prepended V2 */
+long seektag(long seekpos);
+
 
 void infotag(long seekpos);
-int importtag();
-long seektag(long seekpos);
-void showtag(long seekpos);
 
 void zaptitle (void);
 

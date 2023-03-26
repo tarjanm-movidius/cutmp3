@@ -1,5 +1,6 @@
 [Desktop Entry]
 ServiceTypes=audio/x-mp3
+X-TDE-ServiceTypes=audio/x-mp3
 Actions=cut
 
 [Desktop Action cut]

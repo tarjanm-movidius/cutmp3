@@ -1,4 +1,11 @@
 
+version 3.0:
+cutmp3 always uses exact times now, without being slow
+improved silence seeking
+much faster negative times seeking for cutting from timetable
+better ID3V2 parsing
+new parameter "-k" keeps old filename and path and appends 0001.mp3, etc.
+
 version 2.1.2:
 old tempfile is removed just before playing new tempfile. Patch by Till Maas.
 

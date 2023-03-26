@@ -1,1 +1,1 @@
-cutmp3 may crash with segmentation fault in pause seeking.
+cutmp3 may crash with segmentation fault in silence seeking.

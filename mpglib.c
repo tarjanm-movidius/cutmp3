@@ -62,7 +62,7 @@ int decode_header(struct frame * fr, unsigned long newhead)
 //#warning: lay=3 is a dirty hack
   fr->lay = 3;
   if (((newhead >> 10) & 0x3) == 0x3) {
-    fprintf(stderr, "   l.65: Stream error \n");
+//     fprintf(stderr, "   l.65: Stream error \n");
 //    exit(1);
     return(0); /* JP */
   }
@@ -1136,10 +1136,10 @@ BOOL InitMP3(void)
 
 // struct mpstr *gmp=NULL; /* from line 172 */
   if (gmp==NULL) {
-     gmp=(struct mpstr *)malloc(sizeof(struct mpstr)*8); /* JP: changed malloc size by factor 8 */
+     gmp=(struct mpstr *)malloc(sizeof(struct mpstr)*16); /* JP: changed malloc size by factor 16 */
   if(mdebug==7)printf("\nafter gmp=(struct...");
   }
-  memset(gmp, 0, sizeof(struct mpstr)*8);
+  memset(gmp, 0, sizeof(struct mpstr)*16);
 //  memset(gmp, 0, sizeof(struct mpstr));
   if(mdebug==7)printf("\nafter memset(gmp, 0,...");
 
@@ -1190,7 +1190,7 @@ static struct buf *addbuf(struct mpstr * mp, char *buf, int size)
 {
   struct buf *nbuf;
 
-  nbuf = malloc(sizeof(struct buf)*8); // JP: added *8
+  nbuf = malloc(sizeof(struct buf)*16); // JP: added *16
   if (!nbuf) {
     fprintf(stderr, "   l.1189: Out of memory!\n");
     return NULL;
@@ -1429,8 +1429,8 @@ unsigned int get_framelevel(FILE *zin, int framenum)
 		 * fictitious `last frame +1'. It makes writing out
 		 * selections of frames easier.
 		 */
-	   framepower=(short *)malloc((maxframe) * sizeof(short)*8); /* JP: added *8 */
-	   frameoffset=(long *)malloc((1+maxframe) * sizeof(long)*8); /* JP: added *8 */
+	   framepower=(short *)malloc((maxframe) * sizeof(short)*16); /* JP: added *16 */
+	   frameoffset=(long *)malloc((1+maxframe) * sizeof(long)*16); /* JP: added *16 */
            frameoffset[maxframe]= filelen;
 	}
 
