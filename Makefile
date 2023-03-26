@@ -1,5 +1,5 @@
 NAME=cutmp3
-VERSION=2.0.1
+VERSION=2.0.2
 PREFIX=/usr
 BINDIR=${PREFIX}/bin
 DATADIR=${PREFIX}/share
@@ -24,10 +24,7 @@ clean:
 install:
 	install -d ${BINDIR}
 	install ${NAME} ${BINDIR}
-	if [ ! -z "${KDEDIR}" ]; then install -m 644 ${NAME}.desktop ${KDEDIR}/share/apps/konqueror/servicemenus; fi
-	if [ -d /usr/share/apps/konqueror/servicemenus ]; then install -m 644 ${NAME}.desktop /usr/share/apps/konqueror/servicemenus; fi
-	if [ -d /opt/kde/share/apps/konqueror/servicemenus ]; then install -m 644 ${NAME}.desktop /opt/kde/share/apps/konqueror/servicemenus; fi
-	if [ -d /opt/kde3/share/apps/konqueror/servicemenus ]; then install -m 644 ${NAME}.desktop /opt/kde3/share/apps/konqueror/servicemenus; fi
+	if [ ! -z "${KDEDIR}" ]; then install -m 644 ${NAME}.desktop ${KDEDIR}/share/apps/konqueror/servicemenus; elif [ -d /usr/share/apps/konqueror/servicemenus ]; then install -m 644 ${NAME}.desktop /usr/share/apps/konqueror/servicemenus; elif [ -d /opt/kde/share/apps/konqueror/servicemenus ]; then install -m 644 ${NAME}.desktop /opt/kde/share/apps/konqueror/servicemenus; elif [ -d /opt/kde3/share/apps/konqueror/servicemenus ]; then install -m 644 ${NAME}.desktop /opt/kde3/share/apps/konqueror/servicemenus; fi
 	install -d ${DOCDIR}/${NAME}
 	install -m 644 README* USAGE ${DOCDIR}/${NAME}
 	install -d ${MANDIR}

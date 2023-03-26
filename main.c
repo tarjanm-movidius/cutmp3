@@ -8,14 +8,14 @@
  ***************************************************************************/
 
 /*
-	main.c   Cut MP3s framewise, VBR supported !
+	main.c   Cut MP3s framewise, VBR supported!
 	The code is somewhat ugly and unsafe, sorry! At least it is fast :-)
 	(c) Jochen Puchalla 2003-2009  <mail@puchalla-online.de>
 */
 
 #include "cutmp3.h"
 
-#define VERSION "2.0.1"
+#define VERSION "2.0.2"
 #define YEAR "2009"
 
 /* general buffersize */
@@ -30,14 +30,14 @@
 	long filesize, dataend, inpoint, outpoint;
 	long startmins, endmins;
 	double startsecs, endsecs;
-	int startoff=1, endoff=1;
+	int negstart=1, negend=1; /* start- and endpoint from end? */
 	int totalmins, audiobegin=0;
-	int howlong=1;
-	double totalsecs;
+	int howlong=1; /* play how many seconds? */
+	double totalsecs; /* seconds of total time (<60) */
 	int fix_secondbyte=0, fix_sampfreq=0, fix_channelmode=7, fix_mpeg=7;
 	long double fix_frametime=0;
 	int vbr=0, a_b_used=0;
-	double avbr, msec;
+	double avbr, msec; /* average bitrate and one millisecond in relation to avbr */
 
 	char *filename;
 	char *forcedname;
@@ -47,7 +47,7 @@
 	int livetime=1;
 	int exactmode=0, mute=0, forced_file=0, overwrite=0, forced_prefix=0;
 	int copytags=0, nonint=0;
-	long silfactor=15;
+	long silfactor=15; /* silence already longer than wanted by this factor */
 	int stdoutwrite=0;
 	long framenumber=0, framecount=0;
 	long double totaltime=0;
@@ -127,6 +127,7 @@ void help(void)
 	printf("        'o' turns on overwriting for next time.\n");
 	printf("        'i' shows file info.\n\n");
 	printf("        Replay with 'r'.\n");
+	printf("        Toggle playing up to / from location with 'R'.\n");
 	printf("        Toggle sound on/off with '#'.\n");
 	printf("        Toggle live time on/off with 'l'.\n");
 	printf("        Write configuration file with 'S'.\n\n");
@@ -194,6 +195,7 @@ int sampfreq(unsigned char secondbyte, unsigned char thirdbyte)
 		if (sampfreqnumber==2) return 8000;
 	}
 //	printf("\nsecbyte:%u mpeg:%u sampfreqnumber:%u",secondbyte,MPEG,sampfreqnumber);
+
 	/* In case of an error, sampfreq=1 is returned */
 	return 1;
 }
@@ -377,7 +379,6 @@ long nextframe(long seekpos)
 		b=fgetc(mp3file);
 		c=fgetc(mp3file);
 		d=fgetc(mp3file);
-//		if (a==255 && isheader(b,c,d)==1 && framesize(b,c,d)!=1 && sampfreq(b,c)!=1);
 		if (a==255 && framesize(b,c,d)!=1 && sampfreq(b,c)!=1);
 		else seekpos=nextframe(seekpos+1);
 	}
@@ -991,15 +992,11 @@ ID3 V1 Implementation
 long importid3(long seekpos)
 {
 	long int length=0, pos=0, i=0;
-// 	char id3name[32]="/tmp/id3v2tag";
 	int size=0, hasexthdr=0, footer=0;
-// 	FILE *id3file;
 	unsigned char a,b,c,d;
 	int majorv, minorv;
 
 //	printf("\nimportid3 at %li\n",seekpos);
-
-// 	remove("/tmp/id3v2tag");
 
 	fseek(mp3file, seekpos, SEEK_SET);
 	length=skipid3v2(seekpos)-seekpos; /* also checks if there is ID3 V2 */
@@ -1014,14 +1011,12 @@ long importid3(long seekpos)
 	artist[0]='\0';
 	comment[0]='\0';
 
-// 	id3file2 = fopen(id3name,"rb");
 	fseek(id3file2, 0, SEEK_SET);
 	for (i=0 ; i < 3 ; i++) {fgetc(id3file2); pos++;} /* skip ID3 */
 	majorv=fgetc(id3file2); pos++;
 	minorv=fgetc(id3file2); pos++;
 	a=b=fgetc(id3file2); pos++; /* flags byte */
 //	printf(" flags byte=%u ",a);
-// 	if(majorv!=2) {fclose(id3file2); return 0;} /* only V2 */
 	if(majorv!=2) return 0; /* only V2 */
 	if(minorv>=3) hasexthdr=(a<<1)>>7; /* has extended header? */
 	if(minorv==4) footer=((b<<3)>>7)*10; /* has footer? */
@@ -1279,8 +1274,6 @@ long importid3(long seekpos)
 		}
 	}
 
-// 	fclose(id3file);
-
 	/* in case there was no info about them: */
 	if (strlen(title)==0) snprintf(title,31,"%s","unknown title");
 	if (strlen(artist)==0) snprintf(artist,31,"%s","unknown artist");
@@ -1341,11 +1334,7 @@ void infotag(long seekpos)
 /* This function copies the ID3 V1 tag to a tempfile */
 void copytag(long seekpos)
 {
-// 	char id3name1[8191]="/tmp/id3v1tag";
-// 	FILE *outfile;
 	int j=0;
-
-// 	remove("/tmp/id3v1tag");
 
 	if (seekpos < 0) seekpos=0;
 	if (seekpos > filesize) seekpos=filesize;
@@ -1356,10 +1345,8 @@ void copytag(long seekpos)
 
 	/* copy tag to file */
 	fseek(mp3file, seekpos-128, SEEK_SET);
-// 	if (NULL== (id3file1 = fopen(id3name1,"wb"))){perror("\ncutmp3: failed writing /tmp/id3v1tag");exitseq(8);}
 	fseek(id3file1, 0, SEEK_SET);
 	for (j=0 ; j < 128 ; j++) fputc(getc(mp3file),id3file1);
-// 	fclose(id3file1);
 
 	return;
 }
@@ -1483,7 +1470,6 @@ void copyid3(long startpos, long endpos)
 	if (endpos > filesize) endpos=filesize;
 	if (endpos < startpos) return;
 
-// 	if (NULL== (id3file2 = fopen(id3name2,"wb"))){perror("\ncutmp3: failed writing /tmp/id3v2tag");exitseq(7);}
 	fseek(mp3file, startpos, SEEK_SET);
 	fseek(id3file2, 0, SEEK_SET);
 	for (bytesin=0 ; bytesin < endpos-startpos ; bytesin++)
@@ -1610,8 +1596,6 @@ void copyid3(long startpos, long endpos)
 			}
 		}
 	}
-
-// 	fclose(id3file2);
 
 	return;
 }
@@ -1777,7 +1761,7 @@ void playsel(long int playpos)
 			while (i<howlong*20 && temppos < filesize)
 			{
 				temppos=pos-audiobegin+i*avbr*6.35;
-				printf("\b\b\b\b\b\b\b\b\b\b %3u:%05.2f",showmins(pos-audiobegin),showsecs(temppos));
+				printf("\b\b\b\b\b\b\b\b\b\b %3u:%05.2f",showmins(temppos),showsecs(temppos));
 				usleep(50000);
 				i++;
 			}
@@ -1806,10 +1790,24 @@ void playsel(long int playpos)
 /* This function plays sound up to the current position */
 void playtoend(long int playpos)
 {
-	if (mute) return;
-	printf("  Now playing up to endpoint.\n");
-	if (playpos-avbr*128*howlong < audiobegin) playsel(playpos-avbr*128*howlong);
-	else playsel(prevframe(playpos-avbr*128*howlong));
+	long pos;
+
+	if (exactmode==0) pos=playpos;
+	else pos=audiobegin-1;
+
+	if (mute)
+	{
+		if (playpos >= inpoint)
+		printf("  position is %3u:%05.2f / ~%u:%02.0f  (~%u:%02.0f after startpoint) \n",showmins(pos-audiobegin),showsecs(pos-audiobegin),totalmins,totalsecs,showmins(playpos-inpoint),showsecs(playpos-inpoint));
+		else
+		printf("  position is %3u:%05.2f / ~%u:%02.0f  (~%u:%02.0f before startpoint) \n",showmins(pos-audiobegin),showsecs(pos-audiobegin),totalmins,totalsecs,showmins(inpoint-playpos),showsecs(inpoint-playpos));
+	}
+	else
+	{
+		printf("\n  Now playing up to location. ");
+		if (playpos-avbr*128*howlong < audiobegin) playsel(playpos-avbr*128*howlong);
+		else playsel(prevframe(playpos-avbr*128*howlong));
+	}
 	return;
 }
 
@@ -2090,19 +2088,19 @@ void savesel(char *prefix)
 	}
 
 	/* noninteractive cutting: */
-	if (nonint==1 && startoff>0 && endoff>0) printf("  saved %lu:%05.2f - %lu:%05.2f to '%s'.  \n",startmins,startsecs,endmins,endsecs,outname);
+	if (nonint==1 && negstart>0 && negend>0) printf("  saved %lu:%05.2f - %lu:%05.2f to '%s'.  \n",startmins,startsecs,endmins,endsecs,outname);
 	else
 	/* negative offset: */
 	if (nonint==1)
 	{
-		if (endoff<0)
+		if (negend<0)
 		{
 			endm=totalmins-endmins;
 			ends=totalsecs-endsecs;
 			if (ends<0){ends=ends+60; endm--;}
 		}
 		else {endm=endmins; ends=endsecs;}
-		if (startoff<0)
+		if (negstart<0)
 		{
 			startm=totalmins-startmins;
 			starts=totalsecs-startsecs;
@@ -2531,7 +2529,7 @@ void cutexact(char *prefix)
 	/* first look for inpoint */
 
 //	printf("  seeking startpoint");
-	if (startoff<0)
+	if (negstart<0)
 	{
 		printf("  seeking startpoint backwards... (slow!)\n");
 		inpoint=seekfromend(startmins,startsecs);
@@ -2569,7 +2567,7 @@ void cutexact(char *prefix)
 //	printf("  seeking endpoint");
 	pos=audiobegin;
 	time=0;
-	if (endoff<0)
+	if (negend<0)
 	{
 		printf("  seeking endpoint backwards... (slow!)\n");
 		outpoint=seekfromend(endmins,endsecs);
@@ -2635,7 +2633,7 @@ void cutfromtable(char *tablename, char *prefix)
 	int pos2, position=1, linenumber=1;
 	double number=0;
 	startsecs=startmins=endsecs=endmins=0;
-	startoff=endoff=1;
+	negstart=negend=1;
 
 	timefile = fopen(tablename,"rb");
 	/* Load BUFFER Bytes into unsigned buffer[] */
@@ -2664,8 +2662,8 @@ void cutfromtable(char *tablename, char *prefix)
 		}
 
 		/* '-' is offset from end */
-		if (ttable[pos2]==45 && position < 5) startoff=-1;
-		if (ttable[pos2]==45 && position > 4) endoff=-1;
+		if (ttable[pos2]==45 && position < 5) negstart=-1;
+		if (ttable[pos2]==45 && position > 4) negend=-1;
 		/* ':' and '.' increase position */
 		if (ttable[pos2]==58 && position < 5) {position=2;} /* : */
 		if (ttable[pos2]==58 && position > 4) {position=6;} /* : */
@@ -2689,35 +2687,35 @@ void cutfromtable(char *tablename, char *prefix)
 				if(endsecs>59.999) { do {endmins++; endsecs=endsecs-60;} while (endsecs>59.999);}
 
 				if (a_b_used!=1) printf(" using timetable \"%s\" line %i:\n",tablename,linenumber);linenumber++;
-				if (endmins*endoff>totalmins)
+				if (endmins*negend>totalmins)
 				{
 					printf("  WARNING: setting endpoint (%li:%05.2f) to end of file (%u:%05.2f)!  \n",endmins,endsecs,showmins(filesize),showsecs(filesize));
 					endmins=totalmins;
 					endsecs=totalsecs;
 				}
-				if (endmins*endoff==totalmins && endsecs>totalsecs)
+				if (endmins*negend==totalmins && endsecs>totalsecs)
 				{
 // 					printf("%lu %lu",outpoint,filesize);
 					printf("  WARNING: setting endpoint (%li:%05.2f)  to end of file (%u:%05.2f)!  \n",endmins,endsecs,showmins(filesize),showsecs(filesize));
 					endsecs=totalsecs;
 				}
-				if (startmins*startoff>totalmins)
+				if (startmins*negstart>totalmins)
 				{
 					printf("  ERROR: startpoint (%li:%05.2f) is after end of file (%u:%05.2f)!  \n",startmins,startsecs,showmins(filesize),showsecs(filesize));
 				}
-				if (startmins*startoff==totalmins && startsecs>totalsecs)
+				if (startmins*negstart==totalmins && startsecs>totalsecs)
 				{
 					printf("  ERROR: startpoint (%li:%05.2f)  is after end of file (%u:%05.2f)!  \n",startmins,startsecs,showmins(filesize),showsecs(filesize));
 				}
 				/* end after start? -> check in cutexact() */
-/*				if (startmins*60+startsecs>=endmins*60+endsecs && startoff==1 && endoff==1)
+/*				if (startmins*60+startsecs>=endmins*60+endsecs && negstart==1 && negend==1)
 				{
 					fprintf(stdout,"  cutmp3: endpoint (%li:%05.2f) must be after startpoint (%li:%05.2f)!  \n",endmins,endsecs,startmins,startsecs);
 				}*/
 				else cutexact(prefix);
 				position=1;
 				startsecs=startmins=endsecs=endmins=0;
-				startoff=endoff=1;
+				negstart=negend=1;
 				number=0;
 			}
 		}
@@ -2801,6 +2799,7 @@ int main(int argc, char *argv[])
 	double ft_factor=2;
 	char *tablename=malloc(8191);
 	char *prefix=malloc(8191);
+	void (*play)(long int playpos) = playsel;
 
 /* ------------------------------------------------------------------------- */
 /*                   */
@@ -3019,25 +3018,27 @@ int main(int argc, char *argv[])
 
 	while (1)
 	{
-		printf("\n[1..0,r,a,b,s,q] > ");
+// 		printf("\n[1..0,r,a,b,s,q] > ");
+        printf("\n%3u:%05.2f [1..0,r,a,b,s,q] > ", showmins(startpos-audiobegin), showsecs(startpos-audiobegin));
 		c = getchar();
 		if (c == 'q') {printf("\n\n");exitseq(0);}
-		if (c == '1') {startpos=frewind(startpos,1000*600); playsel(startpos);}
-		if (c == '2') {startpos=frewind(startpos,1000*60); playsel(startpos);}
-		if (c == '3') {startpos=frewind(startpos,1000*10); playsel(startpos);}
-		if (c == '4') {startpos=frewind(startpos,1000); playsel(startpos);}
-		if (c == '5') {startpos=frewind(startpos,100); playsel(startpos);}
+		if (c == '1') {startpos=frewind(startpos,1000*600); play(startpos);}
+		if (c == '2') {startpos=frewind(startpos,1000*60); play(startpos);}
+		if (c == '3') {startpos=frewind(startpos,1000*10); play(startpos);}
+		if (c == '4') {startpos=frewind(startpos,1000); play(startpos);}
+		if (c == '5') {startpos=frewind(startpos,100); play(startpos);}
 		/* previous frame, when at EOF */
-		if (c == ',') {startpos=frewind(startpos,1); playsel(startpos);}
-		if (c == '.') {startpos=fforward(startpos,1); playsel(startpos);}    /* next frame */
-		if (c == '6') {startpos=fforward(startpos,100);playsel(startpos);}
-		if (c == '7') {startpos=fforward(startpos,1000);playsel(startpos);}
-		if (c == '8') {startpos=fforward(startpos,1000*10);playsel(startpos);}
-		if (c == '9') {startpos=fforward(startpos,1000*60);playsel(startpos);}
-		if (c == '0') {startpos=fforward(startpos,1000*600);playsel(startpos);}
-		if (c == 'r') playsel(startpos);
+		if (c == ',') {startpos=frewind(startpos,1); play(startpos);}
+		if (c == '.') {startpos=fforward(startpos,1); play(startpos);}    /* next frame */
+		if (c == '6') {startpos=fforward(startpos,100);play(startpos);}
+		if (c == '7') {startpos=fforward(startpos,1000);play(startpos);}
+		if (c == '8') {startpos=fforward(startpos,1000*10);play(startpos);}
+		if (c == '9') {startpos=fforward(startpos,1000*60);play(startpos);}
+		if (c == '0') {startpos=fforward(startpos,1000*600);play(startpos);}
+		if (c == 'r') play(startpos);
+		if (c == 'R') { play = play == &playsel ? playtoend : playsel; play(startpos);}
 		if (c == 'v') printf("  volume=%u",volume(startpos));
-		if (c == 's') savesel(prefix);
+		if (c == 's') {savesel(prefix);play=playsel;}
 		if (c == 'S') writeconf();
 		if (c == 't') savewithtag();
 		if (c == 'i') showfileinfo(rawmode,fix_channels);
@@ -3048,13 +3049,20 @@ int main(int argc, char *argv[])
 		if (c == 'a')
 		{
 			inpoint=startpos;
-			printf("  startpoint set to %u:%05.2f  \n",showmins(inpoint),showsecs(inpoint));
+			printf("  startpoint set to %u:%05.2f  \n",showmins(inpoint-audiobegin),showsecs(inpoint-audiobegin));
+			play=playtoend;
 		}
 		if (c == 'b')
 		{
 			outpoint=startpos;
-			playtoend(startpos);
-			printf("  endpoint set to %u:%05.2f  \n",showmins(outpoint),showsecs(outpoint));
+			if(mute)
+			printf("  endpoint set to %u:%05.2f  \n",showmins(outpoint-audiobegin),showsecs(outpoint-audiobegin));
+			else
+			{
+			printf("  endpoint set to %u:%05.2f  ",showmins(outpoint-audiobegin),showsecs(outpoint-audiobegin));
+// 			playtoend(startpos);
+			}
+			play=playsel;
 		}
 		if (c == '#')
 		{
@@ -3082,7 +3090,7 @@ int main(int argc, char *argv[])
 			else
 			{
 				printf("\n  End of next silence reached.       \n");
-				playsel(startpos);
+				play(startpos);
 			}
 		}
 		if (c == 'P')
@@ -3093,7 +3101,8 @@ int main(int argc, char *argv[])
 			else
 			{
 				printf("\n  End of sound reached.      \n");
-				playtoend(startpos);
+				play=playtoend;
+				play(startpos);
 			}
 		}
 		if (c == 'T')
@@ -3101,7 +3110,7 @@ int main(int argc, char *argv[])
 			startpos=seektag(startpos);
 			printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
 			if (startpos>=dataend) printf("  End of file reached.     \n");
-			else playsel(startpos);
+			else play(startpos);
 		}
 		if (c == 'W')
 		{
@@ -3118,12 +3127,12 @@ int main(int argc, char *argv[])
 		if (c == 'A')
 		{
 			startpos=inpoint;
-			playsel(startpos);
+			play(startpos);
 		}
 		if (c == 'B')
 		{
 			startpos=outpoint;
-			playsel(startpos);
+			play(startpos);
 		}
 		if (c == '+')
 		{
@@ -3158,13 +3167,13 @@ int main(int argc, char *argv[])
 MP3-Frame-Header: 4 Bytes
 
 ########
-0 - 7   Alles 1 für Sync
+0 - 7   Alles 1 fï¿½r Sync
 ########
-8 -10   Alles 1 für Sync
+8 -10   Alles 1 fï¿½r Sync
 11-12   MPEG-Version: 10=MPEG2 11=MPEG1 01=MPEG2.5
-13-14   0 1 für Layer3
-        1 0 für Layer2
-        1 1 für Layer1
+13-14   0 1 fï¿½r Layer3
+        1 0 fï¿½r Layer2
+        1 1 fï¿½r Layer1
    15   Protection Bit, bei 0 soll nach Header Error-Check kommen (CRC)
 ########
 16-19   bitrate encoding
@@ -3173,7 +3182,7 @@ MP3-Frame-Header: 4 Bytes
    23   Private Bit
 ########
 24-25   Mono/Stereo Modus
-26-27   Mode Extension für Joint Stereo
+26-27   Mode Extension fï¿½r Joint Stereo
    28   Copyright Bit
    29   Original?
 30-31   Emphasis

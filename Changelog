@@ -1,4 +1,11 @@
 
+version 2.0.2:
+Current position is shown in prompt
+'R' toggles playing from / up to location
+After startpoint has been set, cutmp3 plays up to current location
+After endpoint has been set, cutmp3 plays from current location
+Thanks to Till Maas for these patches
+
 version 2.0.1:
 security fixes
 The ':' is no longer mandatory for cutting by giving times
