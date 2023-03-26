@@ -3076,7 +3076,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (strlen(prefix)==0) prefix="result";
+	if (strlen(prefix)==0) prefix=filename;
 
 	if (userin==0 && userout!=0) usage("ERROR: missing inpoint");
 	if (userin!=0 && userout==0) usage("ERROR: missing outpoint");
