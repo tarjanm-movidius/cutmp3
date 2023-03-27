@@ -12,12 +12,13 @@ all:
 	@echo -e "\n\n*** You need readline-devel, ncurses-devel or similar to compile ${NAME} ***\n*** Maybe you want to try the binary on compile failures? ***\n\n"
 	gcc -O2 ${CFLAGS} -c mpglib.c
 	gcc -O2 ${CFLAGS} -c main.c
-	gcc main.o mpglib.o -o ${NAME} -lm -lreadline -lncurses
+	gcc main.o mpglib.o -o ${NAME} -lm -lreadline
+#-lncurses
 
 i386:
 	gcc -Wall -O2 -c mpglib.c
 	gcc -Wall -O2 -c main.c
-	gcc main.o mpglib.o -o ${NAME} -lm -lreadline -lncurses
+	gcc main.o mpglib.o -o ${NAME} -lm -lreadline
 
 clean:
 	rm -f *.o
@@ -40,6 +41,4 @@ uninstall:
 	rm -f ${KDEDIR}/share/apps/konqueror/servicemenus/${NAME}.desktop
 
 debug:
-	gcc -g -Wall -O -c mpglib.c
-	gcc -g -Wall -O -c main.c
-	gcc main.o mpglib.o -o ${NAME} -lm -lreadline -lncurses
+	gcc ${CFLAGS} -DDEBUG -g mpglib.c main.c -o ${NAME} -lm -lreadline

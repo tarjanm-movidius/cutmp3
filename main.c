@@ -36,14 +36,14 @@
 	FILE *mp3file, *timefile;
 	unsigned char begin[BUFFER];
 	long filesize, dataend, inpoint, outpoint;
-	int audiobegin=0;
-	int startmins, endmins;
+	unsigned int audiobegin=0;
+	unsigned int startmins, endmins;
 	real startsecs, endsecs;
 	int negstart=1, negend=1; /* start- or endpoint counted from end? */
-	int totalmins; /* minutes of total time */
+	unsigned int totalmins; /* minutes of total time */
 	real totalsecs; /* seconds of total time (<60) */
 	int howlong=1; /* play how many seconds? */
-	int fix_secondbyte=0, fix_sampfreq=0, fix_channelmode=7, fix_mpeg=7, fix_frsize=1;
+	unsigned int fix_secondbyte=0, fix_sampfreq=0, fix_channelmode=7, fix_mpeg=7, fix_frsize=1;
 	real fix_frametime=0;
 	int vbr=0, a_b_used=0;
 	real avbr, msec; /* average bitrate and one millisecond in relation to avbr */
@@ -56,7 +56,7 @@
 	char *userout;
 
 	int livetime=1;
-	int mute=0, forced_file=0, overwrite=0, forced_prefix=0;
+	unsigned int mute=0, forced_file=0, overwrite=0, forced_prefix=0;
 	int copytags=0, nonint=0;
 	long silfactor=15; /* silence already longer than wanted by this factor */
 	int stdoutwrite=0;
@@ -66,15 +66,15 @@
 	real endtime=0;  /* total time of MP3 in milliseconds */
 	int no_tags=0;
 
-	int card=1;
+	unsigned int card=1;
 	signed int genre=-1;
 
 	long framepos1000[1000000]; // byte position of every 1000th frame
 //	long id3v2[1000000]; // space to copy id3v2 tag
 #define ID3V2_BUFLEN 65534
 	unsigned char id3v2[ID3V2_BUFLEN]; // space to copy id3v2 tag
-	long id3v1[128]; // space to copy id3v1 tag
-	int minorv=0; // id3v2 minor version, mostly 3, rarely 4, 2 is obsolete
+	unsigned char id3v1[128]; // space to copy id3v1 tag
+	unsigned int minorv=0; // id3v2 minor version, mostly 3, rarely 4, 2 is obsolete
 
 	char artist[255]="";
 	char album[255]="";
@@ -158,7 +158,7 @@ void help(void)
 
 /* Which MPEG-Type ? */
 /* Type is in bits nr. 11&12 */
-int mpeg(unsigned char mpegnumber)
+unsigned int mpeg(unsigned char mpegnumber)
 {
 	switch (mpegnumber & (0x3 << 3))
 	{
@@ -171,7 +171,7 @@ int mpeg(unsigned char mpegnumber)
 }
 
 
-int crc(unsigned char crcbyte)
+unsigned int crc(unsigned char crcbyte)
 {
 	if (crcbyte & 0x1)
 		return 0;
@@ -180,7 +180,7 @@ int crc(unsigned char crcbyte)
 }
 
 
-int sampfreq(unsigned char secondbyte, unsigned char thirdbyte)
+unsigned int sampfreq(unsigned char secondbyte, unsigned char thirdbyte)
 {
 	switch (mpeg(secondbyte))
 	{
@@ -213,7 +213,7 @@ int sampfreq(unsigned char secondbyte, unsigned char thirdbyte)
 }
 
 
-int channelmode(unsigned char fourthbyte)
+unsigned int channelmode(unsigned char fourthbyte)
 {
 //	printf("  channelmode()");
 
@@ -225,21 +225,21 @@ int channelmode(unsigned char fourthbyte)
 }
 
 
-int channels(unsigned char fourthbyte)
+unsigned int channels(unsigned char fourthbyte)
 {
 	if (channelmode(fourthbyte)==3) return 1;
 	else return 2;
 }
 
 
-int is_header(int secondbyte, int thirdbyte, int fourthbyte)
+unsigned int is_header(int secondbyte, int thirdbyte, int fourthbyte)
 {
 	if (sampfreq(secondbyte,thirdbyte)==fix_sampfreq && framesize(secondbyte,thirdbyte,fourthbyte)!=1) return 1;
 	else return 0;
 }
 
 
-int bitrate(unsigned char secondbyte,unsigned char thirdbyte,unsigned char fourthbyte)
+unsigned int bitrate(unsigned char secondbyte,unsigned char thirdbyte,unsigned char fourthbyte)
 {
 	unsigned char bitratenumber;
 
@@ -363,7 +363,7 @@ int bitrate(unsigned char secondbyte,unsigned char thirdbyte,unsigned char fourt
 }
 
 
-int layer(unsigned char secondbyte)
+unsigned int layer(unsigned char secondbyte)
 {
 	switch (secondbyte & (0x3<<1))
 	{
@@ -379,7 +379,7 @@ int layer(unsigned char secondbyte)
 }
 
 
-int paddingbit(unsigned char thirdbyte)
+unsigned int paddingbit(unsigned char thirdbyte)
 {
 	if (thirdbyte & 0x1<<1)
 		return 1;
@@ -388,7 +388,7 @@ int paddingbit(unsigned char thirdbyte)
 }
 
 
-int framesize(unsigned char secondbyte,unsigned char thirdbyte,unsigned char fourthbyte)
+unsigned int framesize(unsigned char secondbyte,unsigned char thirdbyte,unsigned char fourthbyte)
 {
 	int br=bitrate(secondbyte,thirdbyte,fourthbyte);
 	int mfactor=2;
@@ -563,7 +563,7 @@ real pos2time (long seekpos)
 
 
 /* get whole minutes from position, quite slow */
-int pos2mins (long seekpos)
+unsigned int pos2mins (long seekpos)
 {
 	long framenr;
 
@@ -598,7 +598,7 @@ real frame2time (long framenr)
 
 
 /* whole minutes from frame number, fast! */
-int frame2mins (long framenr)
+unsigned int frame2mins (long framenr)
 {
 	return frame2time(framenr)/(real)60000;
 }
@@ -630,7 +630,7 @@ long frame2pos (long framenr)
 }
 
 
-long fforward (long seekpos,long skiptime)
+unsigned long fforward (long seekpos,long skiptime)
 {
 	long skipframes=0;
 
@@ -648,7 +648,7 @@ long fforward (long seekpos,long skiptime)
 }
 
 
-long frewind (long seekpos,long rewtime)
+unsigned long frewind (long seekpos,long rewtime)
 {
 	long rewframes=0;
 
@@ -669,7 +669,7 @@ long frewind (long seekpos,long rewtime)
 /* Determination of average VBR bitrate */
 real avbitrate(void)
 {
-	real framecount=0, bitratesum=0;
+	real frmcount=0, bitratesum=0;
 	long pos=audiobegin;
 	unsigned char a,b,c,d;
 	real thisfrsize=0, thisbitrate=0;
@@ -693,11 +693,11 @@ real avbitrate(void)
 			{
 				fseek(mp3file, pos+thisfrsize-1, SEEK_SET);       /* skip framesize bytes */
 				pos=pos+thisfrsize-1;                             /* adjust pos to actual SEEK_SET */
-				framecount++;                                        /* one more frame */
+				frmcount++;                                        /* one more frame */
 				thisbitrate=bitrate(b,c,d);                          /* cache bitrate(b,c,d) */
 				bitratesum=bitratesum+thisbitrate;
-//				printf("\nbitratesum:%ld framecount:%ld ",bitratesum,framecount);
-				if (bitratesum/framecount!=thisbitrate && vbr==0)    /* VBR check */
+//				printf("\nbitratesum:%ld frmcount:%ld ",bitratesum,frmcount);
+				if (bitratesum/frmcount!=thisbitrate && vbr==0)    /* VBR check */
 				{
 					vbr=1;     /* if file is VBR */
 //					printf("\nnoVBR: bitrate=%.0f at %ld Bytes \n",thisbitrate,pos);
@@ -707,8 +707,8 @@ real avbitrate(void)
 		}
 	}
 
-	if (bitratesum==0 || framecount==0) return 0;
-	return bitratesum/framecount;
+	if (bitratesum==0 || frmcount==0) return 0;
+	return bitratesum/frmcount;
 }
 
 
@@ -719,7 +719,7 @@ unsigned int volume(long playpos)
 //	unsigned char a,b,c,d;
 	unsigned char b,c,d;
 	unsigned int level, framenum=4;
-	int i, frsize;
+	unsigned int i, frsize;
 	long pos;
 
 	FILE *volfile;
@@ -774,7 +774,7 @@ unsigned int volume(long playpos)
 	level = get_framelevel(volfile,framenum);
 	DBGPRINT(1, "volume(): after get_framelevel \n");
 	if (level==MP3_ERR) level=65535;
-	if (level<0) level=(-1)*level;
+//	if (level<0) level=(-1)*level;
 	if (level>65535) level=65535;
 	ExitMP3();
 	fclose(volfile);
@@ -1063,7 +1063,7 @@ long importid3v2(long seekpos)
 	long length=0, pos=0, i=0, j=0, bytesin=0;
 	int size=0, hasexthdr=0, exthdrsize=0, footerlength=0;
 	unsigned char a,b,c,d;
-	int encoding=0;
+	unsigned int encoding=0;
 	int ssf=1; // synch safe factor
 
 	/* delete old stuff in case they are not overwritten: */
@@ -1078,7 +1078,7 @@ long importid3v2(long seekpos)
 	fseek(mp3file, seekpos, SEEK_SET);
 	length=skipid3v2(seekpos)-seekpos; /* skipid3v2 also checks if there is ID3 V2 */
 	DBGPRINT(5, " *debug* id3v2 length %ld \n",length);
-	if (length >= ID3V2_BUFLEN){printf("ERROR:  id3v2 length %ld >= %u\n",length, ID3V2_BUFLEN);}
+	if (length >= ID3V2_BUFLEN){printf("ERROR:  id3v2 length %ld >= %d\n",length, ID3V2_BUFLEN);}
 	if (length==0) return 0; /* is not ID3 V2 */
 
 	/* copy whole tag to buffer, max 1E6 Bytes */
@@ -1089,11 +1089,13 @@ long importid3v2(long seekpos)
 	DBGPRINT(5, "\n *debug* found ID3 version 2.%u.%u\n", minorv, id3v2[4]);
 	a=b=id3v2[5]; /* flags byte */
 	DBGPRINT(5, " *debug* flags byte=%u ",a);
-
-	if (minorv>=3) hasexthdr=(a<<1)>>7; /* has extended header? */
-	if (minorv==4) footerlength=((b<<3)>>7)*10; /* has footer? */
-							/* skip 4 bytes tag length info */
-
+/*
+	if (minorv>=3) hasexthdr=(a<<1)>>7;			// has extended header?
+	if (minorv==4) footerlength=((b<<3)>>7)*10;		// has footer?
+*/
+	if (minorv>=3 && (a & 0x40)) hasexthdr=1;		// has extended header?
+	if (minorv==4 && (b & 0x10)) footerlength=10; 	// has footer?
+											// skip 4 bytes tag length info
 	if (hasexthdr)
 	{
 		/* skip ext header */
@@ -1102,7 +1104,8 @@ long importid3v2(long seekpos)
 		c=id3v2[12];
 		d=id3v2[13];
 		pos=pos+4;
-		exthdrsize=a*128*128*128+b*128*128+c*128+d;
+		exthdrsize=((a * 128 + b) * 128 + c) * 128 + d;
+//		exthdrsize=a*128*128*128+b*128*128+c*128+d;
 		DBGPRINT(5, "\n *debug* hasexthdr of size=%i\n",exthdrsize);
 	}
 	pos=10+exthdrsize;
@@ -1739,7 +1742,7 @@ void playsel(long playpos)
 	int fd=-1;
 	int i=0;
 	long tempfrnr=pos2frame(playpos);
-	int mins,secs;
+	unsigned int mins,secs;
 
 	if (prev_playname[0] != 0) {
 		// printf("remove file %s\n", prev_playname); /* debug */
@@ -1818,7 +1821,7 @@ void playsel(long playpos)
 void playtoend(long playpos)
 {
 	long pos;
-	int mins,secs;
+	unsigned int mins,secs;
 	long framenr,rewframes;
 
 	secs=abs(pos2time(inpoint)-pos2time(playpos))/1000;
@@ -1835,9 +1838,9 @@ void playtoend(long playpos)
 	if (mute)
 	{
 		if (playpos >= inpoint)
-		printf("  position is %4u:%05.2f / %u:%02.0f  (%u:%02i after startpoint) \n",frame2mins(framenumber),frame2secs(framenumber),totalmins,totalsecs,mins,secs);
+		printf("  position is %4u:%05.2f / %u:%02.0f  (%u:%02u after startpoint) \n",frame2mins(framenumber),frame2secs(framenumber),totalmins,totalsecs,mins,secs);
 		else
-		printf("  position is %4u:%05.2f / %u:%02.0f  (%u:%02i before startpoint) \n",frame2mins(framenumber),frame2secs(framenumber),totalmins,totalsecs,mins,secs);
+		printf("  position is %4u:%05.2f / %u:%02.0f  (%u:%02u before startpoint) \n",frame2mins(framenumber),frame2secs(framenumber),totalmins,totalsecs,mins,secs);
 	}
 	else
 	{
@@ -1956,7 +1959,7 @@ void playfirst(long playpos)
 void savesel(char *prefix)
 {
 	char *outname=malloc(FN_LEN);
-	int number=1;
+	unsigned int number=1;
 	long bytesin=0;
 	long endm, startm;
 	real ends, starts;
@@ -2119,7 +2122,7 @@ void savesel(char *prefix)
 	}
 
 	/* noninteractive cutting: */
-	if (nonint==1 && negstart>0 && negend>0) printf("  saved %i:%05.2f - %i:%05.2f to '%s'.  \n",startmins,startsecs,endmins,endsecs,outname);
+	if (nonint==1 && negstart>0 && negend>0) printf("  saved %u:%05.2f - %u:%05.2f to '%s'.  \n",startmins,startsecs,endmins,endsecs,outname);
 	else
 	/* negative offset: */
 	if (nonint==1)
@@ -2138,7 +2141,7 @@ void savesel(char *prefix)
 			if (starts<0){starts=starts+60; startm--;}
 		}
 		else {startm=startmins; starts=startsecs;}
-		printf("  saved %i:%05.2f - %i:%05.2f to '%s'.  \n",pos2mins(inpoint),pos2secs(inpoint),pos2mins(outpoint),pos2secs(outpoint),outname);
+		printf("  saved %u:%05.2f - %u:%05.2f to '%s'.  \n",pos2mins(inpoint),pos2secs(inpoint),pos2mins(outpoint),pos2secs(outpoint),outname);
 	}
 	else
 	/* interactive cutting: */
@@ -2163,7 +2166,8 @@ void savewithtag(void)
 	char *title1=malloc(TAG_LEN); /* Title from Tag V1 */
 	char *title2=malloc(TAG_LEN); /* Title from Tag V2 */
 //	int a;
-	int i, tagver=0, hasid3=0, hastag=0, number=1;
+	int i, tagver=0, hasid3=0, hastag=0;
+	unsigned int number=1;
 	char outname[FN_LEN]="cutmp3.tmp";
 	char outname2[FN_LEN]="\0";
 	char *newname=outname2;
@@ -2547,7 +2551,7 @@ void cutexact(char *prefix)
 
 	DBGPRINT(7, "cutexact()\n");
 
-	DBGPRINT(7, " %i %i %lf %i %i %lf \n",negstart,startmins,startsecs,negend,endmins,endsecs);
+	DBGPRINT(7, " %i %u %lf %i %u %lf \n",negstart,startmins,startsecs,negend,endmins,endsecs);
 
 	/* first look for inpoint */
 
@@ -2627,7 +2631,7 @@ void writetable()
 /* This function copies selections when using a timetable */
 void cutfromtable(char *tablename, char *prefix)
 {
-	int pos2, position=1;
+	unsigned int pos2, position=1;
 //	int linenumber=1;
 	real number=0;
 
@@ -2674,12 +2678,12 @@ void cutfromtable(char *tablename, char *prefix)
 		if (ttable[pos2]==46 && position==5) {endsecs=endmins; endmins=0; position=7;} /* . */
 		if (ttable[pos2]==46 && position==6) {position=7;} /* . */
 
-		DBGPRINT(7, " %i %i %lf %i %i %lf \n",negstart,startmins,startsecs,negend,endmins,endsecs);
+		DBGPRINT(7, " %i %u %lf %i %u %lf \n",negstart,startmins,startsecs,negend,endmins,endsecs);
 
 		/* space switches to read end or to cutexact() */
 		if (isspace(ttable[pos2]))  /* char is a whitespace */
 		{
-		DBGPRINT(7, "whitespace %i %i %lf %i %i %lf \n",negstart,startmins,startsecs,negend,endmins,endsecs);
+		DBGPRINT(7, "whitespace %i %u %lf %i %u %lf \n",negstart,startmins,startsecs,negend,endmins,endsecs);
 			if (position==5 && endmins+endsecs > 0)  /* only minutes given, finish */
 			{
 				position=9;
@@ -2695,23 +2699,23 @@ void cutfromtable(char *tablename, char *prefix)
 				if (a_b_used!=1) printf(" using timetable \"%s\"\n",tablename);
 				if (endmins*negend>totalmins)
 				{
-					printf("  WARNING: setting endpoint (%i:%05.2f) to end of file (%u:%05.2f)!  \n",endmins,endsecs,pos2mins(filesize),pos2secs(filesize));
+					printf("  WARNING: setting endpoint (%u:%05.2f) to end of file (%u:%05.2f)!  \n",endmins,endsecs,pos2mins(filesize),pos2secs(filesize));
 					endmins=totalmins;
 					endsecs=totalsecs;
 				}
 				if (endmins*negend==totalmins && endsecs>totalsecs)
 				{
 // 					printf("%ld %ld",outpoint,filesize);
-					printf("  WARNING: setting endpoint (%i:%05.2f)  to end of file (%u:%05.2f)!  \n",endmins,endsecs,pos2mins(filesize),pos2secs(filesize));
+					printf("  WARNING: setting endpoint (%u:%05.2f)  to end of file (%u:%05.2f)!  \n",endmins,endsecs,pos2mins(filesize),pos2secs(filesize));
 					endsecs=totalsecs;
 				}
 				if (startmins*negstart>totalmins)
 				{
-					printf("  ERROR: startpoint (%i:%05.2f) is after end of file (%u:%05.2f)!  \n",startmins,startsecs,pos2mins(filesize),pos2secs(filesize));
+					printf("  ERROR: startpoint (%u:%05.2f) is after end of file (%u:%05.2f)!  \n",startmins,startsecs,pos2mins(filesize),pos2secs(filesize));
 				}
 				if (startmins*negstart==totalmins && startsecs>totalsecs)
 				{
-					printf("  ERROR: startpoint (%i:%05.2f)  is after end of file (%u:%05.2f)!  \n",startmins,startsecs,pos2mins(filesize),pos2secs(filesize));
+					printf("  ERROR: startpoint (%u:%05.2f)  is after end of file (%u:%05.2f)!  \n",startmins,startsecs,pos2mins(filesize),pos2secs(filesize));
 				}
 				/* end after start? -> check in cutexact() */
 				else cutexact(prefix);
@@ -2724,7 +2728,7 @@ void cutfromtable(char *tablename, char *prefix)
 		}
 
 		if (ttable[pos2]==255) pos2=BUFFER;
-		DBGPRINT(7, "pos2=%u %i:%02.2f %i:%02.2f position=%u\n",pos2,startmins,startsecs,endmins,endsecs,position);
+		DBGPRINT(7, "pos2=%u %u:%02.2f %u:%02.2f position=%u\n",pos2,startmins,startsecs,endmins,endsecs,position);
 		pos2++;
 	}
 	while (pos2<BUFFER);
@@ -2737,7 +2741,7 @@ void showfileinfo(int rawmode, int fix_channels)
 
 	if (rawmode==1)
 	{
-		printf("%ld %u %u %.0f %u %.0lf\n",totalframes,fix_sampfreq,fix_channels,avbr,fix_mpeg,fix_frametime*totalframes);
+		printf("%ld %u %i %.0f %u %.0lf\n",totalframes,fix_sampfreq,fix_channels,avbr,fix_mpeg,fix_frametime*totalframes);
 		exitseq(0);
 	}
 
@@ -2786,7 +2790,7 @@ void showdebug(long seekpos, char *prefix)
 	int b,c,d;
 
 	printf("\n\nfile name is %s\n",filename);
-	printf("audiobegin is at      %10i\n",audiobegin);
+	printf("audiobegin is at      %10u\n",audiobegin);
 	printf("I am at offset        %10li <-\n",seekpos);
 // 	printf("frame2pos             %10li\n",frame2pos(framenumber));
 	printf("last frame, last byte %10li\n",dataend);
@@ -2799,20 +2803,20 @@ void showdebug(long seekpos, char *prefix)
 	b=fgetc(mp3file);
 	c=fgetc(mp3file);
 	d=fgetc(mp3file);
-	printf("current framesize is %i bytes\n",framesize(b,c,d));
+	printf("current framesize is %u bytes\n",framesize(b,c,d));
 	printf("pos2time is %lf\n",pos2time(seekpos));
 	printf("current framenumber is %10li\n",framenumber);
 	printf("pos2frame is           %10li\n",pos2frame(seekpos));
 	printf("total # of frames is   %10li\n",totalframes);
 // 	printf("framenumber(filesize) is %ld\n",pos2frame(filesize));
 // 	printf("framenumber(dataend) is %ld\n",pos2frame(dataend));
-	printf("fix framesize is %i bytes\n",fix_frsize);
+	printf("fix framesize is %u bytes\n",fix_frsize);
 	printf("fix frametime is %.5lf ms\n",fix_frametime);
 // 	printf("framepos1000[0] is %ld\n",framepos1000[0]);
 // 	printf("framepos1000[1] is %ld\n",framepos1000[1]);
-	printf("silencelength is %i ms\n",silencelength);
-	printf("silvol is %i\n",silvol);
-	printf("volume is %i\n",volume(seekpos));
+	printf("silencelength is %u ms\n",silencelength);
+	printf("silvol is %u\n",silvol);
+	printf("volume is %u\n",volume(seekpos));
 	printf("msec is %lf bytes\n",msec);
 	printf("Prefix is '%s'\n",prefix);
 	print_id3v1(seekpos);
@@ -2830,7 +2834,7 @@ int main(int argc, char *argv[])
 {
 //	int a;
 	int b,c,d,char1,showinfo=0,rawmode=0,fix_channels=0;
-	long pos, startpos;
+	unsigned long pos, startpos;
 	real ft_factor=2;
 	char *tablename=malloc(FN_LEN);
 	char *prefix=malloc(FN_LEN);
@@ -2971,10 +2975,11 @@ int main(int argc, char *argv[])
 		b=fgetc(mp3file);
 		c=fgetc(mp3file);
 		d=fgetc(mp3file);
-		if (framesize(b,c,d)==nextframe(0)) audiobegin=0;
-		else audiobegin=nextframe(0);
+		inpoint=nextframe(0);
+		if (framesize(b,c,d)==inpoint) audiobegin=0;
+		else audiobegin=inpoint;
 	}
-	audiobegin=nextframe(audiobegin-1); /* in case there is invalid data after an ID3 V2 tag */
+	if(audiobegin) audiobegin=nextframe(audiobegin-1); /* in case there is invalid data after an ID3 V2 tag */
 
 	startpos=inpoint=audiobegin;
 

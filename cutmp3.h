@@ -20,24 +20,24 @@
 void usage(char *text);
 void help(void);
 
-int mpeg(unsigned char secondbyte);
-int layer(unsigned char secondbyte);
-int sampfreq(unsigned char secondbyte, unsigned char thirdbyte);
-int channelmode(unsigned char fourthbyte);
-int channels(unsigned char fourthbyte);
-int bitrate(unsigned char secondbyte,unsigned char thirdbyte,unsigned char fourthbyte);
-int paddingbit(unsigned char thirdbyte);
-int framesize(unsigned char secondbyte,unsigned char thirdbyte,unsigned char fourthbyte);
-int is_header(int secondbyte, int thirdbyte, int fourthbyte);
+unsigned int mpeg(unsigned char secondbyte);
+unsigned int layer(unsigned char secondbyte);
+unsigned int sampfreq(unsigned char secondbyte, unsigned char thirdbyte);
+unsigned int channelmode(unsigned char fourthbyte);
+unsigned int channels(unsigned char fourthbyte);
+unsigned int bitrate(unsigned char secondbyte,unsigned char thirdbyte,unsigned char fourthbyte);
+unsigned int paddingbit(unsigned char thirdbyte);
+unsigned int framesize(unsigned char secondbyte,unsigned char thirdbyte,unsigned char fourthbyte);
+unsigned int is_header(int secondbyte, int thirdbyte, int fourthbyte);
 
 long nextframe(long seekpos);
 long prevframe(long seekpos);
 
-int showmins (long bytes);
-//double showsecs (long bytes);
+//int showmins (long bytes);
+//real showsecs (long bytes);
 
-long fforward (long seekpos,long skiptime);
-long frewind (long seekpos,long skiptime);
+unsigned long fforward (long seekpos,long skiptime);
+unsigned long frewind (long seekpos,long skiptime);
 
 real avbitrate(void);
 long get_total_frames(void);
