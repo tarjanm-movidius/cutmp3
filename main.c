@@ -405,6 +405,7 @@ long nextframe(long seekpos)
 {
 	long oldseekpos=seekpos;   /* remember seekpos */
 	unsigned char a,b,c,d;
+	unsigned int framesz = 0;
 
 	if (seekpos>=filesize) return filesize;
 
@@ -415,7 +416,8 @@ long nextframe(long seekpos)
 	b=fgetc(mp3file);
 	c=fgetc(mp3file);
 	d=fgetc(mp3file);
-	if (a==255 && framesize(b,c,d)!=1 && sampfreq(b,c)!=1) seekpos=seekpos+framesize(b,c,d);
+
+	if (a==255 && (framesz=framesize(b,c,d))!=1 && sampfreq(b,c)!=1) seekpos=seekpos+framesz;
 	else seekpos=oldseekpos+1;
 
 	/* find next possible header, start right at seekpos */
@@ -431,15 +433,15 @@ long nextframe(long seekpos)
 			b=fgetc(mp3file);
 			c=fgetc(mp3file);
 			d=fgetc(mp3file);
-			if (framesize(b,c,d)!=1 && sampfreq(b,c)!=1) break;  /* next header found */
+			if ((framesz=framesize(b,c,d))!=1 && sampfreq(b,c)!=1) break;  /* next header found */
 		}
 		seekpos++;
 	}
 
 	/* also check next frame if possible */
-	if (seekpos+framesize(b,c,d)+4<filesize)
+	if (seekpos+framesz+4<filesize)
 	{
-		fseek(mp3file, seekpos+framesize(b,c,d), SEEK_SET);
+		fseek(mp3file, seekpos+framesz, SEEK_SET);
 		a=fgetc(mp3file);
 		b=fgetc(mp3file);
 		c=fgetc(mp3file);
@@ -716,14 +718,13 @@ real avbitrate(void)
    of one frame. Taken from mpglib and mpcut. */
 unsigned int volume(long playpos)
 {
-//	unsigned char a,b,c,d;
-	unsigned char b,c,d;
+	unsigned char a,b,c,d;
 	unsigned int level, framenum=4;
 	unsigned int i, frsize;
 	long pos;
 
 	FILE *volfile;
-	char volname[15] = "/tmp/volXXXXXX";
+	static char volname[] = "/dev/shm/volXXXXXX";
 	int fd=-1;
 
 	DBGPRINT(1, "\nvolume(): before prevframe(playpos)");
@@ -732,9 +733,16 @@ unsigned int volume(long playpos)
 
 	DBGPRINT(1, "\nvolume(): after %ux prevframe %ld \n",framenum,playpos);
 
-	if ((fd = mkstemp(volname)) == -1 || (NULL== (volfile = fdopen(fd, "w+b"))) )
+	if ((fd = mkstemp(volname)) == -1 || (volfile = fdopen(fd, "w+b")) == NULL)
 	{
-		perror("\ncutmp3: failed writing temporary volume mp3 in /tmp");exitseq(6); /* open temp.vol.file read-writable zero length */
+		DBGPRINT(1, "\nvolume(): /dev/shm not writable\n");
+		strcpy(volname, "/tmp/volXXXXXX");
+		if ((fd = mkstemp(volname)) == -1 || (volfile = fdopen(fd, "w+b")) == NULL)
+		{
+			/* open temp.vol.file read-writable zero length */
+			perror("\ncutmp3: failed writing temporary volume mp3 in /tmp");
+			exitseq(6);
+		}
 	}
 
 	frsize=1;
@@ -749,12 +757,13 @@ unsigned int volume(long playpos)
 			pos=nextframe(pos);
 			DBGPRINT(1, "\nvolume(): pos=%ld\n",pos);
 			fseek(mp3file, pos, SEEK_SET);
-//			a=fgetc(mp3file);
-			fgetc(mp3file);
-			b=fgetc(mp3file);
-			c=fgetc(mp3file);
-			d=fgetc(mp3file);
-			frsize=framesize(b,c,d);
+			a=fgetc(mp3file);
+			if(a==255) {
+				b=fgetc(mp3file);
+				c=fgetc(mp3file);
+				d=fgetc(mp3file);
+				frsize=framesize(b,c,d);
+			}
 		}
 		DBGPRINT(1, "\nvolume(): frsize=%u\n",frsize);
 		/* write this frame */
