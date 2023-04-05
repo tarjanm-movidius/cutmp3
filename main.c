@@ -69,12 +69,10 @@
 	unsigned int card=1;
 	signed int genre=-1;
 
-	long framepos1000[1000000]; // byte position of every 1000th frame
-//	long id3v2[1000000]; // space to copy id3v2 tag
-#define ID3V2_BUFLEN 65534
-	unsigned char id3v2[ID3V2_BUFLEN]; // space to copy id3v2 tag
-	unsigned char id3v1[128]; // space to copy id3v1 tag
-	unsigned int minorv=0; // id3v2 minor version, mostly 3, rarely 4, 2 is obsolete
+	long *framepos1000 = NULL;	// byte position of every 1000th frame
+	unsigned char *id3v2 = NULL;	// space to copy id3v2 tag
+	unsigned char id3v1[128];	// space to copy id3v1 tag
+	unsigned int minorv=0;		// id3v2 minor version, mostly 3, rarely 4, 2 is obsolete
 
 	char artist[255]="";
 	char album[255]="";
@@ -96,7 +94,9 @@
 
 void exitseq(int foobar)
 {
- 	remove(logname);
+	free(framepos1000);
+	free(id3v2);
+	remove(logname);
 
 	exit(foobar);  /* now really exit */
 
@@ -232,25 +232,38 @@ unsigned int channels(unsigned char fourthbyte)
 }
 
 
-unsigned int is_header(int secondbyte, int thirdbyte, int fourthbyte)
+#define INVALID_HDR { 0x00, 0x08, 0xFC, 0x02 }
+
+unsigned int is_hdr(unsigned char *buf)
 {
-	if (sampfreq(secondbyte,thirdbyte)==fix_sampfreq && framesize(secondbyte,thirdbyte,fourthbyte)!=1) return 1;
-	else return 0;
+    /* http://www.mp3-tech.org/programmer/frame_header.html */
+	if (buf[0] == 255
+	&& (buf[1] & (0x7<<5)) == (7<<5)
+	&& (buf[1] & (0x3<<1)) != 0
+#if 0	/* Strict sample rate check */
+	&& sampfreq(buf[1], buf[2]) == fix_sampfreq
+#else
+	&& (buf[1] & (0x3<<3)) != (1<<3)
+	&& (buf[2] & (0x3<<2)) != (3<<2)
+#endif
+	&& (buf[2] & (0xF<<4)) != (0xF<<4)
+	&& (buf[3] & 0x3) != 2) return 1;
+		else return 0;
 }
 
 
-unsigned int bitrate(unsigned char secondbyte,unsigned char thirdbyte,unsigned char fourthbyte)
+unsigned int bitrate(unsigned char secondbyte, unsigned char thirdbyte)
 {
 	unsigned char bitratenumber;
 
-	bitratenumber = thirdbyte>>4;
+	bitratenumber = thirdbyte >> 4;
 
-	if (layer(secondbyte)==3) /* MPEG Layer3 */
-	{
-		if (mpeg(secondbyte)==1) /* MPEG1 */
-		{
-			switch (bitratenumber)
-			{
+	switch( layer(secondbyte) ) {
+
+	case 3: /* MPEG Layer3 */
+		switch (mpeg(secondbyte)) {
+		case 1: /* MPEG1 */
+			switch (bitratenumber) {
 				case 1: return 32;
 				case 2: return 40;
 				case 3: return 48;
@@ -266,11 +279,10 @@ unsigned int bitrate(unsigned char secondbyte,unsigned char thirdbyte,unsigned c
 				case 13: return 256;
 				case 14: return 320;
 			}
-		}
-		if (mpeg(secondbyte)==3 || mpeg(secondbyte)==2) /* MPEG2.5, MPEG2 */
-		{
-			switch (bitratenumber)
-			{
+			break;
+		case 2: /* MPEG2 */
+		case 3: /* MPEG2.5 */
+			switch (bitratenumber) {
 				case 1: return 8;
 				case 2: return 16;
 				case 3: return 24;
@@ -286,15 +298,14 @@ unsigned int bitrate(unsigned char secondbyte,unsigned char thirdbyte,unsigned c
 				case 13: return 144;
 				case 14: return 160;
 			}
+			break;
 		}
-	}
+		break;
 
-	if (layer(secondbyte)==2) /* MPEG Layer2 */
-	{
-		if (mpeg(secondbyte)==1) /* MPEG1 */
-		{
-			switch (bitratenumber)
-			{
+	case 2: /* MPEG Layer2 */
+		switch (mpeg(secondbyte)) {
+		case 1: /* MPEG1 */
+			switch (bitratenumber) {
 				case 1: return 32;
 				case 2: return 48;
 				case 3: return 56;
@@ -310,11 +321,10 @@ unsigned int bitrate(unsigned char secondbyte,unsigned char thirdbyte,unsigned c
 				case 13: return 320;
 				case 14: return 384;
 			}
-		}
-		if (mpeg(secondbyte)==3 || mpeg(secondbyte)==2) /* MPEG2.5, MPEG2 */
-		{
-			switch (bitratenumber)
-			{
+			break;
+		case 2: /* MPEG2 */
+		case 3: /* MPEG2.5 */
+			switch (bitratenumber) {
 				case 1: return 8;
 				case 2: return 16;
 				case 3: return 24;
@@ -330,13 +340,12 @@ unsigned int bitrate(unsigned char secondbyte,unsigned char thirdbyte,unsigned c
 				case 13: return 144;
 				case 14: return 160;
 			}
+			break;
 		}
-	}
+		break;
 
-	if (layer(secondbyte)==1) /* MPEG Layer1 */
-	{
+	case 1: /* MPEG Layer1 */
 		if (mpeg(secondbyte)==1) /* MPEG1 */
-		{
 			switch (bitratenumber)
 			{
 				case 1: return 32;
@@ -354,11 +363,11 @@ unsigned int bitrate(unsigned char secondbyte,unsigned char thirdbyte,unsigned c
 				case 13: return 416;
 				case 14: return 448;
 			}
-		}
+		break;
 	}
 
 	/* In case of an error, bitrate=1 is returned */
-	DBGPRINT(2, "%s(0x%02hhX) Warning: reserved value\n", __func__, secondbyte);
+	DBGPRINT(2, "%s(0x%02hhX, 0x%02hhX) Warning: reserved value\n", __func__, secondbyte, thirdbyte);
 	return 1;
 }
 
@@ -388,9 +397,25 @@ unsigned int paddingbit(unsigned char thirdbyte)
 }
 
 
+unsigned int frame_sz(unsigned char *buf)
+{
+	unsigned int br, sf, mfactor;
+
+	if ((br =  bitrate(buf[1], buf[2])) == 1) return 1;
+	if ((sf = sampfreq(buf[1], buf[2])) == 1) return 1;
+
+	if (mpeg(buf[1]) == 1)
+		mfactor = 2;
+	else
+		mfactor = 1;
+
+	return (mfactor * 72000 * br / sf) + paddingbit(buf[2]);
+}
+
+
 unsigned int framesize(unsigned char secondbyte,unsigned char thirdbyte,unsigned char fourthbyte)
 {
-	int br=bitrate(secondbyte,thirdbyte,fourthbyte);
+	int br=bitrate(secondbyte,thirdbyte);
 	int mfactor=2;
 	int sf=sampfreq(secondbyte,thirdbyte);
 
@@ -403,53 +428,48 @@ unsigned int framesize(unsigned char secondbyte,unsigned char thirdbyte,unsigned
 /* find next frame at seekpos */
 long nextframe(long seekpos)
 {
-	long oldseekpos=seekpos;   /* remember seekpos */
-	unsigned char a,b,c,d;
-	unsigned int framesz = 0;
+	unsigned char hdrbuf[4] = INVALID_HDR;
+	unsigned int framesz;
 
-	if (seekpos>=filesize) return filesize;
+	if (seekpos >= filesize) return filesize;
 
 	fseek(mp3file, seekpos, SEEK_SET);
 
 	/* if seekpos is a header and framesize is valid, jump to next header via framesize, else move on one byte */
-	a=fgetc(mp3file);
-	b=fgetc(mp3file);
-	c=fgetc(mp3file);
-	d=fgetc(mp3file);
-
-	if (a==255 && (framesz=framesize(b,c,d))!=1 && sampfreq(b,c)!=1) seekpos=seekpos+framesz;
-	else seekpos=oldseekpos+1;
+	fread(hdrbuf, 1, 4, mp3file);
+	if (is_hdr(hdrbuf))
+		seekpos = seekpos + frame_sz(hdrbuf);
+	else
+		seekpos = seekpos + 1;
 
 	/* find next possible header, start right at seekpos */
+	if (seekpos >= filesize) return filesize;
 	fseek(mp3file, seekpos, SEEK_SET);
 
-	while(1)           /* loop till break */
+	while(seekpos < filesize)
 	{
-		if (seekpos>=filesize) break;
-		fseek(mp3file, seekpos, SEEK_SET);
-		a=fgetc(mp3file);  /* get next byte */
-		if (a==255)
+		hdrbuf[0] = fgetc(mp3file);  /* get next byte */
+		if (hdrbuf[0] == 255)
 		{
-			b=fgetc(mp3file);
-			c=fgetc(mp3file);
-			d=fgetc(mp3file);
-			if ((framesz=framesize(b,c,d))!=1 && sampfreq(b,c)!=1) break;  /* next header found */
+			if ((framesz = fread(&hdrbuf[1], 1, 3, mp3file)) == 3 && is_hdr(hdrbuf))
+				break;
+			else
+				fseek(mp3file, -1l * framesz, SEEK_CUR);
 		}
 		seekpos++;
 	}
 
 	/* also check next frame if possible */
-	if (seekpos+framesz+4<filesize)
+	if (seekpos + (framesz = frame_sz(hdrbuf)) + 4 < filesize)
 	{
-		fseek(mp3file, seekpos+framesz, SEEK_SET);
-		a=fgetc(mp3file);
-		b=fgetc(mp3file);
-		c=fgetc(mp3file);
-		d=fgetc(mp3file);
-		if (a==255 && framesize(b,c,d)!=1 && sampfreq(b,c)!=1);
-		else seekpos=nextframe(seekpos+1);
+		fseek(mp3file, seekpos + framesz, SEEK_SET);
+		fread(hdrbuf, 1, 4, mp3file);
+		if (!is_hdr(hdrbuf))
+			seekpos = nextframe(seekpos + 1);
 	}
 
+	// TODO do we guarantee file's at seekpos? If so, why not at the beginning too
+//	fseek(mp3file, seekpos, SEEK_SET);
 	return seekpos;
 }
 
@@ -457,33 +477,35 @@ long nextframe(long seekpos)
 /* find previous frame at seekpos */
 long prevframe(long seekpos)
 {
-	long oldseekpos=seekpos;   /* remember seekpos */
+	unsigned char hdrbuf[4] = INVALID_HDR;
 	long nextheaderpos;
-	unsigned char a,b,c,d;
 
-	if (seekpos<audiobegin) seekpos=audiobegin;
+	if (seekpos <= audiobegin + 1) return audiobegin;
 
 	/* find next header, start right at seekpos */
-	nextheaderpos=nextframe(seekpos);
+//	nextheaderpos = nextframe(seekpos);
+	fseek(mp3file, seekpos, SEEK_SET);
+	fread(hdrbuf, 1, 4, mp3file);
+	if (!is_hdr(hdrbuf))
+		nextheaderpos = nextframe(seekpos + 1);
+	else
+		nextheaderpos = seekpos;
 
 	/* rewind to previous header and check if nextheader is more than framesize bytes further */
-	seekpos=oldseekpos-1;
-	while(1)           /* loop till break */
+	while(--seekpos > audiobegin)		// if seekpos == audiobegin we'll just return that
 	{
-		if (seekpos<audiobegin) break;
 		fseek(mp3file, seekpos, SEEK_SET);
-		a=fgetc(mp3file);
-		if (a==255)
+		hdrbuf[0] = fgetc(mp3file);
+		if (hdrbuf[0] == 255)
 		{
-			b=fgetc(mp3file);
-			c=fgetc(mp3file);
-			d=fgetc(mp3file);
-			if (is_header(b,c,d) && seekpos+framesize(b,c,d)<=nextheaderpos && sampfreq(b,c)!=1) break;     /* previous frame found */
+			if (fread(&hdrbuf[1], 1, 3, mp3file) == 3 && is_hdr(hdrbuf) \
+			 && seekpos + frame_sz(hdrbuf) <= nextheaderpos)     /* previous frame found */
+				break;
 		}
-		seekpos--;
 	}
 
-	if (seekpos<audiobegin) seekpos=audiobegin;
+	// TODO do we guarantee file's at seekpos? If so, why not at the beginning too
+//	fseek(mp3file, seekpos, SEEK_SET);
 	return seekpos;
 }
 
@@ -503,17 +525,42 @@ because bitrate=128 means 128000bits/s
 /* scan whole file, can take seconds */
 void scanframes()
 {
-	long pos=0,count=0,i=0;
+	long pos;
+	unsigned char hdrbuf[4] = INVALID_HDR;
+	unsigned int count, ii;
 
-	pos=audiobegin; {framepos1000[i]=pos; i++;}
-	while (pos<filesize)
-	{
-		pos=nextframe(pos);
+	framepos1000[0] = audiobegin;
+	pos = nextframe(audiobegin);
+	count = 1, ii = 1;
+
+	while (pos < filesize) {
+		fseek(mp3file, pos, SEEK_SET);
+		if (fread(hdrbuf, 1, 4, mp3file) < 4 || !is_hdr(hdrbuf))
+			break;
+		pos += frame_sz(hdrbuf);
 		count++;
-		if ( (real)count/(real)1000 == count/1000 ) {framepos1000[i]=pos; i++;}
+		if (!(count % 1000))
+			framepos1000[ii++] = pos;
 	}
-	totalframes=count;
-	framepos1000[i]=filesize+1;
+
+	if (pos < filesize) {
+		fseek(mp3file, -4l, SEEK_CUR);
+		if (fgetc(mp3file)!='T' || fgetc(mp3file)!='A' || fgetc(mp3file)!='G' ) {
+			printf("\n%s(): rerunning scan with paranoia due to error at %ld\n", __func__, pos);
+			count = 0, ii = 1;
+
+			while (pos < filesize)
+			{
+				pos = nextframe(pos);
+				count++;
+				if (!(count % 1000))
+					framepos1000[ii++] = pos;
+			}
+		}
+	}
+
+	totalframes = count;
+	framepos1000[ii] = filesize + 1;	// TODO why?
 	return;
 }
 
@@ -673,31 +720,30 @@ real avbitrate(void)
 {
 	real frmcount=0, bitratesum=0;
 	long pos=audiobegin;
-	unsigned char a,b,c,d;
-	real thisfrsize=0, thisbitrate=0;
+	unsigned char hdrbuf[4] = INVALID_HDR;
+	real thisfrsize=1, thisbitrate=0;
 
 //	printf("  avbitrate");
 	fseek(mp3file, audiobegin, SEEK_SET);
-	while(1)                              /* loop till break */
+
+	while(pos < filesize-4 && pos < SCANAREA)
 	{
 //		printf("\navbitrate in loop, pos=%ld, filesize=%ld\n",pos,filesize);
 		if (pos>=filesize-1 || pos>SCANAREA) break;
-		a=fgetc(mp3file); pos++;
+		hdrbuf[0]=fgetc(mp3file);
 //		printf("\na=%u\n",a);
-		if (a==255)
+		if (hdrbuf[0]==255)
 		{
-			b=fgetc(mp3file);
-			c=fgetc(mp3file);
-			d=fgetc(mp3file);
-			thisfrsize=framesize(b,c,d);                                     /* cache framesize(b,c,d) */
+			fread(&hdrbuf[1], 1, 3, mp3file);
+			thisfrsize = frame_sz(hdrbuf);                                     /* cache framesize(b,c,d) */
 //			if (isheader(b,c,d)==1 && thisfrsize!=1 && sampfreq(b,c)!=1)     /* next frame found */
-			if (thisfrsize!=1 && sampfreq(b,c)==fix_sampfreq)                /* next frame found */
+			if (thisfrsize!=1 && sampfreq(hdrbuf[1], hdrbuf[2])==fix_sampfreq)                /* next frame found */
 			{
-				fseek(mp3file, pos+thisfrsize-1, SEEK_SET);       /* skip framesize bytes */
-				pos=pos+thisfrsize-1;                             /* adjust pos to actual SEEK_SET */
-				frmcount++;                                        /* one more frame */
-				thisbitrate=bitrate(b,c,d);                          /* cache bitrate(b,c,d) */
-				bitratesum=bitratesum+thisbitrate;
+				pos += thisfrsize;							/* adjust pos to actual SEEK_SET */
+				fseek(mp3file, pos, SEEK_SET);				/* skip framesize bytes */
+				frmcount++;									/* one more frame */
+				thisbitrate=bitrate(hdrbuf[1], hdrbuf[2]);	/* cache bitrate(b,c,d) */
+				bitratesum += thisbitrate;
 //				printf("\nbitratesum:%ld frmcount:%ld ",bitratesum,frmcount);
 				if (bitratesum/frmcount!=thisbitrate && vbr==0)    /* VBR check */
 				{
@@ -705,7 +751,7 @@ real avbitrate(void)
 //					printf("\nnoVBR: bitrate=%.0f at %ld Bytes \n",thisbitrate,pos);
 				}
 			}
-			else fseek(mp3file, pos, SEEK_SET);    /* rewind to next byte for if (a==255) */
+			else fseek(mp3file, ++pos, SEEK_SET);    /* rewind to next byte for if (a==255) */
 		}
 	}
 
@@ -1069,7 +1115,7 @@ $03 – UTF-8 encoded Unicode, in ID3v2.4.
    argument is start of tag */
 long importid3v2(long seekpos)
 {
-	long length=0, pos=0, i=0, j=0, bytesin=0;
+	long length=0, pos=0, i=0, j=0;
 	int size=0, hasexthdr=0, exthdrsize=0, footerlength=0;
 	unsigned char a,b,c,d;
 	unsigned int encoding=0;
@@ -1085,14 +1131,13 @@ long importid3v2(long seekpos)
 	DBGPRINT(5, "\n *debug* importid3v2 at %ld\n",seekpos);
 
 	fseek(mp3file, seekpos, SEEK_SET);
-	length=skipid3v2(seekpos)-seekpos; /* skipid3v2 also checks if there is ID3 V2 */
+	length=skipid3v2(seekpos)-seekpos; /* skipid3v2 checks if there is ID3 V2 and allocates id3v2[] buffer */
 	DBGPRINT(5, " *debug* id3v2 length %ld \n",length);
-	if (length >= ID3V2_BUFLEN){printf("ERROR:  id3v2 length %ld >= %d\n",length, ID3V2_BUFLEN);}
 	if (length==0) return 0; /* is not ID3 V2 */
 
-	/* copy whole tag to buffer, max 1E6 Bytes */
+	/* copy whole tag to buffer */
 	fseek(mp3file, seekpos, SEEK_SET);
-	for (bytesin=0 ; bytesin < length && bytesin<ID3V2_BUFLEN ; bytesin++) id3v2[bytesin]=fgetc(mp3file);
+	fread(id3v2, 1, length, mp3file);
 
 	minorv=id3v2[3]; if (minorv==3) ssf=2;
 	DBGPRINT(5, "\n *debug* found ID3 version 2.%u.%u\n", minorv, id3v2[4]);
@@ -1113,7 +1158,7 @@ long importid3v2(long seekpos)
 		c=id3v2[12];
 		d=id3v2[13];
 		pos=pos+4;
-		exthdrsize=((a * 128 + b) * 128 + c) * 128 + d;
+		exthdrsize=((a * 128 + b) * 128 + c) *128 + d;
 //		exthdrsize=a*128*128*128+b*128*128+c*128+d;
 		DBGPRINT(5, "\n *debug* hasexthdr of size=%i\n",exthdrsize);
 	}
@@ -1616,7 +1661,8 @@ long skipid3v2(long seekpos)
 	{
 // 		printf("\nID3 V2 found at %ld\n",seekpos);
 		footer=buffer[5]; footer=footer<<3; footer=footer>>7; footer=footer*10; /* check for footer presence */
-		length=buffer[6]*128*128*128+buffer[7]*128*128+buffer[8]*128+buffer[9];
+		length=((buffer[6]*128+buffer[7])*128+buffer[8])*128+buffer[9];
+		id3v2 = (unsigned char*)realloc(id3v2, 10+length+footer);
 		seekpos=seekpos+10+length+footer;
 	}
 	fseek(mp3file, oldseekpos, SEEK_SET); /* really necessary? */
@@ -2644,7 +2690,7 @@ void cutfromtable(char *tablename, char *prefix)
 //	int linenumber=1;
 	real number=0;
 
-	startsecs=endsecs=0; /* seconds _may_ be given */
+	startsecs=endsecs=0.0; /* seconds _may_ be given */
 	startmins=endmins=0; /* minutes _must_ be given! */
 	negstart=negend=1;
 
@@ -2756,7 +2802,7 @@ void showfileinfo(int rawmode, int fix_channels)
 
 	printf("\n\n* Properties of \"%s\":\n* \n",filename);
 	if (audiobegin != 0) printf("* Audio data starts at %u Bytes\n",audiobegin);
-	printf("* Size of first frame is %u Bytes\n",framesize(begin[1],begin[2],begin[3]));
+	printf("* Size of first frame is %u Bytes\n",frame_sz(begin));
 	if (mpeg(begin[1])==3) printf("* File is MPEG2.5-Layer%u\n",layer(begin[1]));
 	else printf("*\n* Format is MPEG%u-Layer%u\n",mpeg(begin[1]),layer(begin[1]));
 	if (vbr==0) printf("*           %.0f kBit/sec\n",avbr);
@@ -2844,10 +2890,11 @@ int main(int argc, char *argv[])
 //	int a;
 	int b,c,d,char1,showinfo=0,rawmode=0,fix_channels=0;
 	unsigned long pos, startpos;
-	real ft_factor=2;
-	char *tablename=malloc(FN_LEN);
-	char *prefix=malloc(FN_LEN);
+	real ft_factor = 2;
+	char *tablename = malloc(FN_LEN);
+	char *prefix = malloc(FN_LEN);
 	void (*play)(long playpos) = playsel;
+	prefix[0] = 0;
 
 /* ------------------------------------------------------------------------- */
 /*                   */
@@ -2973,11 +3020,10 @@ int main(int argc, char *argv[])
 	/* get filesize and set outpoint to it */
 	fseek(mp3file, 0, SEEK_END);
 	outpoint=filesize=ftell(mp3file);
+	framepos1000 = (long*)malloc((filesize/384 + 1999) / 1000 * sizeof(long));	// Framenum with minimum theoretical size / 1000 + 1
 
 	/* Check beginning of file: set audiobegin */
-	if ( (audiobegin=skipid3v2(0)) != 0 ) ;
-	else
-	{
+	if ((audiobegin = skipid3v2(0)) == 0) {
 		fseek(mp3file, 0, SEEK_SET);
 //		a=fgetc(mp3file);
 		fgetc(mp3file);
@@ -3013,7 +3059,7 @@ int main(int argc, char *argv[])
 	avbr=avbitrate(); /* average bitrate during SCANAREA (10 MB) */
 	if (avbr==0) {usage("ERROR: File has less than two valid frames.");exitseq(4);}
 // 	msec=avbr/8;  /* one millisecond in bytes */
-	if (!vbr) fix_frsize=framesize(begin[1],begin[2],begin[3]);
+	if (!vbr) fix_frsize=frame_sz(begin);
 	scanframes();
 	msec=frame2time(totalframes)*1000/filesize;  /* one millisecond in bytes */
 

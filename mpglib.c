@@ -981,17 +981,19 @@ static int III_dequantize_sample(real xr[SBLIMIT][SSLIMIT], int *scf,
                     part2remain -= h->linbits + 1;
                     x += getbits(h->linbits);
                     if (get1bit())
-                        *xrpnt++ = -ispow[x] * v;
+                        *xrpnt = -ispow[x] * v;
                     else
-                        *xrpnt++ = ispow[x] * v;
+                        *xrpnt = ispow[x] * v;
                     energy += *xrpnt * *xrpnt;
+                    xrpnt++;
                 } else if (x) {
                     max = cb;
                     if (get1bit())
-                        *xrpnt++ = -ispow[x] * v;
+                        *xrpnt = -ispow[x] * v;
                     else
-                        *xrpnt++ = ispow[x] * v;
+                        *xrpnt = ispow[x] * v;
                     energy += *xrpnt * *xrpnt;
+                    xrpnt++;
                     part2remain--;
                 } else
                     *xrpnt++ = 0.0;
@@ -1001,17 +1003,19 @@ static int III_dequantize_sample(real xr[SBLIMIT][SSLIMIT], int *scf,
                     part2remain -= h->linbits + 1;
                     y += getbits(h->linbits);
                     if (get1bit())
-                        *xrpnt++ = -ispow[y] * v;
+                        *xrpnt = -ispow[y] * v;
                     else
-                        *xrpnt++ = ispow[y] * v;
+                        *xrpnt = ispow[y] * v;
                     energy += *xrpnt * *xrpnt;
+                    xrpnt++;
                 } else if (y) {
                     max = cb;
                     if (get1bit())
-                        *xrpnt++ = -ispow[y] * v;
+                        *xrpnt = -ispow[y] * v;
                     else
-                        *xrpnt++ = ispow[y] * v;
+                        *xrpnt = ispow[y] * v;
                     energy += *xrpnt * *xrpnt;
+                    xrpnt++;
                     part2remain--;
                 } else
                     *xrpnt++ = 0.0;
@@ -1051,10 +1055,11 @@ static int III_dequantize_sample(real xr[SBLIMIT][SSLIMIT], int *scf,
                         break;
                     }
                     if (get1bit())
-                        *xrpnt++ = -v;
+                        *xrpnt = -v;
                     else
-                        *xrpnt++ = v;
+                        *xrpnt = v;
                     energy += *xrpnt * *xrpnt;
+                    xrpnt++;
                 } else
                     *xrpnt++ = 0.0;
             }

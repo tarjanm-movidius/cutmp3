@@ -25,7 +25,7 @@ unsigned int layer(unsigned char secondbyte);
 unsigned int sampfreq(unsigned char secondbyte, unsigned char thirdbyte);
 unsigned int channelmode(unsigned char fourthbyte);
 unsigned int channels(unsigned char fourthbyte);
-unsigned int bitrate(unsigned char secondbyte,unsigned char thirdbyte,unsigned char fourthbyte);
+unsigned int bitrate(unsigned char secondbyte,unsigned char thirdbyte);
 unsigned int paddingbit(unsigned char thirdbyte);
 unsigned int framesize(unsigned char secondbyte,unsigned char thirdbyte,unsigned char fourthbyte);
 unsigned int is_header(int secondbyte, int thirdbyte, int fourthbyte);
