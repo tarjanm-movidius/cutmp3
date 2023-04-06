@@ -16,9 +16,6 @@
 
 #include "cutmp3.h"
 
-#define VERSION "3.0.2"
-#define YEAR "2022"
-
 /* general buffersize */
 #define BUFFER 32000
 #define FN_LEN 8191

@@ -10,8 +10,13 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
-#include <readline/readline.h>
-#include <readline/history.h>
+#ifdef LINENOISE
+# include "linenoise/linenoise.h"
+# define readline linenoise
+#else
+# include <readline/readline.h>
+# include <readline/history.h>
+#endif
 
 #include "mpglib.h"
 
@@ -25,7 +30,7 @@ unsigned int layer(unsigned char secondbyte);
 unsigned int sampfreq(unsigned char secondbyte, unsigned char thirdbyte);
 unsigned int channelmode(unsigned char fourthbyte);
 unsigned int channels(unsigned char fourthbyte);
-unsigned int bitrate(unsigned char secondbyte,unsigned char thirdbyte);
+unsigned int bitrate(unsigned char secondbyte, unsigned char thirdbyte);
 unsigned int paddingbit(unsigned char thirdbyte);
 unsigned int framesize(unsigned char secondbyte,unsigned char thirdbyte,unsigned char fourthbyte);
 unsigned int is_header(int secondbyte, int thirdbyte, int fourthbyte);
