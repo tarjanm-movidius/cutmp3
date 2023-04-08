@@ -2969,6 +2969,7 @@ int main(int argc, char *argv[])
 		else audiobegin=inpoint;
 	}
 	if(audiobegin) audiobegin=nextframe(audiobegin-1); /* in case there is invalid data after an ID3 V2 tag */
+	audiobegin=nextframe(audiobegin);	// Skip first frame containing original file length
 
 	startpos=inpoint=audiobegin;
 

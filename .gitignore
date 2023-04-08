@@ -1,3 +1,5 @@
 *~
 *.o
 cutmp3
+gmon.out
+gmon.txt

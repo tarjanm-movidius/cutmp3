@@ -55,5 +55,3 @@ uninstall:
 
 prof:
 	if [ ! -e "$(NAME)" ]; then gcc $(CFLAGS) $(DBGFLAGS) -pg -DVERSION=\"$(VERSION)\" main.c mpglib.c $(LDFLAGS) -o $(NAME); elif [ -e "gmon.out" ]; then gprof -c --inline-file-names $(NAME) gmon.out > gmon.txt; fi
-#	[ -e "$(NAME)" ] || gcc $(CFLAGS) $(DBGFLAGS) -pg -DVERSION=\"$(VERSION)\" main.c mpglib.c $(LDFLAGS) -o $(NAME)
-#	[ ! -e "gmon.out" ] || gprof -c --inline-file-names $(NAME) gmon.out > gmon.txt
