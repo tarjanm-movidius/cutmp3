@@ -36,20 +36,24 @@ all: $(info )
 
 $(NAME): $(OBJECTS)
 	$(CC) -o $(NAME) $(OBJECTS) $(LDFLAGS)
+	@echo ""
 
 clean:
 	@rm -vf *.o linenoise/*.o $(NAME)
 
-install:
-	install -d $(BINDIR)
-	install $(NAME) $(BINDIR)
-	strip $(BINDIR)/$(NAME)
-	if [ ! -z "$(KDEDIR)" ]; then install -m 644 $(NAME).desktop $(KDEDIR)/share/apps/konqueror/servicemenus; elif [ -d /usr/share/apps/konqueror/servicemenus ]; then install -m 644 $(NAME).desktop /usr/share/apps/konqueror/servicemenus; elif [ -d /opt/kde/share/apps/konqueror/servicemenus ]; then install -m 644 $(NAME).desktop /opt/kde/share/apps/konqueror/servicemenus; elif [ -d /opt/kde3/share/apps/konqueror/servicemenus ]; then install -m 644 $(NAME).desktop /opt/kde3/share/apps/konqueror/servicemenus; fi
-	install -d $(DOCDIR)/$(NAME)
-	install -m 644 README* USAGE $(DOCDIR)/$(NAME)
-	install -d $(MANDIR)
-	install -m 644 $(NAME).1 $(MANDIR)
-	gzip $(MANDIR)/$(NAME).1
+install: $(NAME)
+	@install -vd $(BINDIR)
+	@install -vd $(MANDIR)
+	@install -vd $(DOCDIR)
+	@echo -n "strip: " && strip -vso $(BINDIR)/$(NAME) $(NAME)
+	@gzip -vc9 $(NAME).1 2>&1 1> $(MANDIR)/$(NAME).1.gz | sed 's|stdout|$(MANDIR)/$(NAME).1.gz|'
+	@install -vm 644 README* USAGE $(DOCDIR)
+	@if [ ! -z "$(KDEDIR)" ]; then install -vm 644 $(NAME).desktop $(KDEDIR)/share/apps/konqueror/servicemenus; elif [ -d /usr/share/apps/konqueror/servicemenus ]; then install -vm 644 $(NAME).desktop /usr/share/apps/konqueror/servicemenus; elif [ -d /opt/kde/share/apps/konqueror/servicemenus ]; then install -vm 644 $(NAME).desktop /opt/kde/share/apps/konqueror/servicemenus; elif [ -d /opt/kde3/share/apps/konqueror/servicemenus ]; then install -vm 644 $(NAME).desktop /opt/kde3/share/apps/konqueror/servicemenus; fi
 
 uninstall:
-	@rm -rvf $(BINDIR)/$(NAME) $(DOCDIR)/$(NAME) $(MANDIR)/$(NAME).1.gz $(KDEDIR)/share/apps/konqueror/servicemenus/$(NAME).desktop /usr/share/apps/konqueror/servicemenus/$(NAME).desktop /opt/kde3/share/apps/konqueror/servicemenus/$(NAME).desktop
+	@rm -rvf $(BINDIR)/$(NAME) $(MANDIR)/$(NAME).1.gz $(DOCDIR) $(KDEDIR)/share/apps/konqueror/servicemenus/$(NAME).desktop /usr/share/apps/konqueror/servicemenus/$(NAME).desktop /opt/kde3/share/apps/konqueror/servicemenus/$(NAME).desktop
+
+prof:
+	if [ ! -e "$(NAME)" ]; then gcc $(CFLAGS) $(DBGFLAGS) -pg -DVERSION=\"$(VERSION)\" main.c mpglib.c $(LDFLAGS) -o $(NAME); elif [ -e "gmon.out" ]; then gprof -c --inline-file-names $(NAME) gmon.out > gmon.txt; fi
+#	[ -e "$(NAME)" ] || gcc $(CFLAGS) $(DBGFLAGS) -pg -DVERSION=\"$(VERSION)\" main.c mpglib.c $(LDFLAGS) -o $(NAME)
+#	[ ! -e "gmon.out" ] || gprof -c --inline-file-names $(NAME) gmon.out > gmon.txt

@@ -3,3 +3,5 @@ fading would be great
 fix volume()
 /dev/shm
 https://github.com/lieff/minimp3.git
+1 scan at the beginning
+id3 tags from buffer

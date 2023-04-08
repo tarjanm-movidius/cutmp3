@@ -12,18 +12,31 @@ cutmp3 even works with files bigger than 2 GB!
 If you want a working graphical software you can try mp3directcut,
 which runs fairly well in WINE after I asked the author about a WINEd version.
 
-Compile cutmp3 with a simple
-(you will need readline-devel or similar!)
+--------------------------------------------------------------------------------
+
+*** Compiling cutmp3 ***
+
+- If you have readline-devel or similar installed on your system:
 
 $ make
 
-install it to /usr/local/bin with
+- If you don't:
+  There is a self-contained minimalistic line editor included as a git
+  submodule. Kudos to antirez: https://github.com/antirez/linenoise
+  To check out and use:
+
+$ git submodule update --init
+$ make LNOISE=yes
+
+- Installing to /usr/local/bin:
 
 $ make install
 
 ..or to /usr/bin with
 
-$ PREFIX=/usr make install
+$ make install PREFIX=/usr
+
+--------------------------------------------------------------------------------
 
 Please read "USAGE" on detailed info on how to use cutmp3.
 

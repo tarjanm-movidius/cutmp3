@@ -19,7 +19,7 @@
 /* general buffersize */
 #define BUFFER 32000
 #define FN_LEN 8191
-#define TAG_LEN 8191
+#define FS_BLOCK_SIZE 4096
 
 /* 10 MB for VBR scanning */
 #define SCANAREA 10485759
@@ -80,7 +80,6 @@
 	or "artist - title.mp3", so leave it empty here! */
 	char title[255]="";
 
-	int hastable=0;
 	unsigned char ttable[BUFFER];
 	FILE *tblfile;
 	char tblname[17] = "/tmp/tableXXXXXX";
@@ -231,7 +230,7 @@ unsigned int channels(unsigned char fourthbyte)
 
 #define INVALID_HDR { 0x00, 0x08, 0xFC, 0x02 }
 
-unsigned int is_hdr(unsigned char *buf)
+inline unsigned int is_hdr(unsigned char *buf)
 {
     /* http://www.mp3-tech.org/programmer/frame_header.html */
 	if (buf[0] == 255
@@ -709,6 +708,25 @@ unsigned long frewind (long seekpos,long rewtime)
 	framenumber=framenumber-rewframes;
 
 	return frame2pos(framenumber);
+}
+
+
+void copyfile(FILE *outfile, FILE *infile, size_t nbyte)
+{
+	char *buf = malloc(FS_BLOCK_SIZE);
+	ssize_t read_sz, write_sz;
+
+	while(nbyte) {
+		read_sz = fread(buf, 1, nbyte < FS_BLOCK_SIZE ? nbyte : FS_BLOCK_SIZE, infile);
+		if(read_sz < 0) {perror("copyfile read()"); exitseq(10);}
+		nbyte -= read_sz;
+		while(read_sz) {
+			write_sz = fwrite(buf, 1, read_sz, outfile);
+			if(write_sz < 0) {perror("copyfile write()"); exitseq(10);}
+			read_sz -= write_sz;
+		}
+	}
+	free(buf);
 }
 
 
@@ -1783,7 +1801,6 @@ void writeconf(void)
 /* This function plays sound at the current position */
 void playsel(long playpos)
 {
-	long bytesin;
 	long playsize;
 	int skipframes=(real)howlong*(real)1000/fix_frametime; /* real time */
 	long pos;
@@ -1822,7 +1839,7 @@ void playsel(long playpos)
 			strncpy(prev_playname, playname, 16);
 		}
 		fseek(mp3file, playpos, SEEK_SET);
-		for (bytesin=0; bytesin < playsize; bytesin++) fputc(getc(mp3file),outfile);
+		copyfile(outfile, mp3file, playsize);
 		fclose(outfile);
 	}
 
@@ -2012,7 +2029,6 @@ void savesel(char *prefix)
 {
 	char *outname=malloc(FN_LEN);
 	unsigned int number=1;
-	long bytesin=0;
 	long endm, startm;
 	real ends, starts;
 //	int a;
@@ -2147,11 +2163,7 @@ void savesel(char *prefix)
 
 	/* COPY DATA HERE */
 	fseek(mp3file, inpoint, SEEK_SET);
-	for (bytesin=0 ; bytesin < outpoint-inpoint ; bytesin++)
-	{
-		if (stdoutwrite==1) putchar(getc(mp3file));
-		else fputc(getc(mp3file),outfile);
-	}
+	copyfile(outfile, mp3file, outpoint-inpoint);
 
 	/* copy tag in case of -c switch */
 	if (copytags==1 && importid3v1(filesize)>0)
@@ -2210,39 +2222,27 @@ savesel_ret:
 /* This function saves the selection interactively with ID3 tags */
 void savewithtag(void)
 {
-	char *tempartist=malloc(TAG_LEN);
-	char *temptitle=malloc(TAG_LEN);
-	char *tempalbum=malloc(TAG_LEN);
-	char *tempyear=malloc(TAG_LEN);
-	char *tempcomment=malloc(TAG_LEN);
-	char *title1=malloc(TAG_LEN); /* Title from Tag V1 */
-	char *title2=malloc(TAG_LEN); /* Title from Tag V2 */
-//	int a;
-	int i, tagver=0, hasid3=0, hastag=0;
+	static char tempartist[31]  = {0};
+	static char temptitle[31]   = {0};
+	static char tempalbum[31]   = {0};
+	static char tempyear[5]     = {0};
+	static char tempcomment[31] = {0};
+	int i = 1, tags = 0, tagver = 0; //, hasid3=0, hastag=0;
 	unsigned int number=1;
 	char outname[FN_LEN]="cutmp3.tmp";
 	char outname2[FN_LEN]="\0";
 	char *newname=outname2;
-	char *tmp;
+	char *tmp = NULL;
 	FILE *fp;
 	FILE *outfile;
 	long oldinpoint=inpoint;
 	long oldoutpoint=outpoint;
-	long bytesin;
-	long length;
-
-	temptitle[0]='\0';
-	tempartist[0]='\0';
-	tempalbum[0]='\0';
-	tempyear[0]='\0';
-	tempcomment[0]='\0';
-	title1[0]='\0';
-	title2[0]='\0';
+	long length = 0;
 
 	if (inpoint > filesize)
 	{
 		printf("  ERROR: startpoint (%u:%05.2f) must be before end of file (%u:%05.2f)!  \n",pos2mins(inpoint),pos2secs(inpoint),pos2mins(filesize),pos2secs(filesize));
-		goto savewithtag_ret;
+		return;
 	}
 	if (inpoint < audiobegin)
 	{
@@ -2257,88 +2257,63 @@ void savewithtag(void)
 	if (outpoint <= inpoint)
 	{
 		printf("  ERROR: endpoint (%u:%05.2f) must be after startpoint (%u:%05.2f)!  \n",pos2mins(outpoint),pos2secs(outpoint),pos2mins(inpoint),pos2secs(inpoint));
-		goto savewithtag_ret;
+		return;
 	}
 
 	/*********************************/
 	/* Choose ID3 V2 or V1 or custom */
 	/*********************************/
-	hasid3=hastag=0;
-// 	inpoint=rewind3v2(inpoint);  not always useful!
 
-	zaptitle(); importid3v1(outpoint);
-	if (strlen(title)>0) {hastag=1; snprintf(title1,31,title);} /* check if selection has tag v1 */
-
-	zaptitle(); length=importid3v2(inpoint);
-	if (strlen(title)>0) {hasid3=1; snprintf(title2,31,title);} /* check if selection has tag v2 */
-
-	if (hastag+hasid3==2) /* has both tags in selection */
-	{
-		printf("\n\nImported titles from selection:");
-		printf("\nPress 1 for this title: %s",title1);
-		printf("\nPress 2 for this title: %s",title2);
-		printf("\nOr press any other key for a custom tag  ");
-		tagver=getchar();
-		if (tagver=='1')
-		{
+	/* check if selection has tag v1 */
+	if(outpoint < filesize) {
+		if (rewind3v1(outpoint) != outpoint) {
 			importid3v1(outpoint);
+			printf("\n\nImported from selection:");
+			printf("\n  Press 1 to copy ID3v1 with this title: %s", title);
+			tags |= 0x1;
+			i++;
 		}
-		else if (tagver=='2')
-		{
-			length=importid3v2(inpoint);
-		}
-	}
-	else if (hasid3>hastag)   /* only V2 */
-	{
-		length=importid3v2(inpoint);
-		printf("\n\nImported title from %s:",filename);
-		printf("\nPress 2 for this title: %s",title);
-		printf("\nOr press any other key for a custom tag  ");
-		tagver=getchar();
-		if (tagver!='2') tagver='3'; /* just in case someone pressed 1 */
-	}
-	else if (hastag>hasid3)  /* only V1 */
-	{
-		importid3v1(outpoint);
-		printf("\n\nImported title from %s:",filename);
-		printf("\nPress 1 for this title: %s",title);
-		printf("\nOr press any other key for a custom tag  ");
-		tagver=getchar();
-		if (tagver!='1') tagver='3'; /* just in case someone pressed 2 */
 	}
 
-	else if (hastag+hasid3==0) /* no tag at all, get them from whole file */
-	{
-		hasid3=hastag=0;
-		zaptitle(); importid3v1(filesize); if (strlen(title)>0) {hastag=1; snprintf(title1,31,title);}
-		zaptitle(); length=importid3v2(0);        if (strlen(title)>0) {hasid3=1; snprintf(title2,31,title);}
-		if (hastag+hasid3==2) /* whole file has both tags */
-		{
- 			printf("\n\nImported titles from %s:",filename);
-			printf("\nPress 1 for this title: %s",title1);
-			printf("\nPress 2 for this title: %s",title2);
-			printf("\nOr press any other key for a custom tag  ");
-			tagver=getchar();
-			if (tagver=='1') importid3v1(filesize);
-			else if (tagver=='2') length=importid3v2(0);
+	/* check if selection has tag v2 */
+	if(inpoint) {
+		if (skipid3v2(inpoint) != inpoint) {
+			length = importid3v2(inpoint);
+			if(!tags) printf("\n\nImported from selection:");
+			printf("\n  Press %d to copy ID3v2 with this title: %s", i, title);
+			tags |= 0x2;
+			i++;
 		}
-		else if (hasid3>hastag)         /* has V2 info from whole file */
-		{
-			length=importid3v2(0);
- 			printf("\n\nImported title from %s:",filename);
-			printf("\nPress 2 for this title: %s",title);
-			printf("\nOr press any other key for a custom tag  ");
-			tagver=getchar();
-			if (tagver!='2') tagver='3'; /* just in case someone pressed 1 */
-		}
-		else if (hastag>hasid3)        /* has V1 info from whole file  */
-		{
-			importid3v1(filesize);
- 			printf("\n\nImported title from %s:",filename);
-			printf("\nPress 1 for this title: %s",title);
-			printf("\nOr press any other key for a custom tag  ");
-			tagver=getchar();
-			if (tagver!='1') tagver='3'; /* just in case someone pressed 2 */
+	}
+
+	/* check if file has tag v1 */
+	if (rewind3v1(filesize) != filesize) {
+		importid3v1(filesize);
+		if(!tags) printf("\n");
+		printf("\nImported from file %s:", filename);
+		printf("\n  Press %d to copy ID3v1 with this title: %s", i, title);
+		tags |= 0x4;
+		i++;
+	}
+
+	/* check if file has tag v2 */
+	if (skipid3v2(0) != 0) {
+		length = importid3v2(0);
+		if(!tags) printf("\n");
+		if(!(tags & 0x04)) printf("\nImported from file %s:", filename);
+		printf("\n  Press %d to copy ID3v2 with this title: %s", i, title);
+		tags |= 0x8;
+		i++;
+	}
+
+	if (tags) {
+		printf("\n  Or press any other key for a custom tag  ");
+		tagver = getchar();
+		if(tagver < '1' || tagver >= i + '0') {
+			tagver = 0;
+		} else {
+			tagver -= '0';
+			for (i = 0; i < 3; i++) if(!(tags & (1<<i)) && i < tagver) tagver++;
 		}
 	}
 
@@ -2355,99 +2330,71 @@ void savewithtag(void)
 
 	printf("\nwriting audio data...");
 
-	if (tagver=='1') /* if chosen to copy ID3 V1 */
-	{
-		inpoint=skipid3v2(inpoint); /* remove possible id3 at beginning */
-		fseek(mp3file, inpoint, SEEK_SET);
-		/* copy audio data */
-		for (bytesin=0; bytesin < outpoint-inpoint; bytesin++) fputc(getc(mp3file),outfile);
-		/* copy id3 v1 tag from end of file if not from selection */
-		if (importid3v1(filesize)>0 && importid3v1(outpoint)==0)
-		{
-			for (i=0;i<128;i++) fputc(id3v1[i],outfile);
-		}
-		printf(" finished.\n");
+	if (tagver == 2 || tagver == 4) { /* copy ID3v2 */
+		if(tagver == 2 && (tags & 0x8)) length = importid3v2(inpoint); /* Not the last tag we read */
+		fwrite(id3v2, 1, length, outfile);
 	}
-	else if (tagver=='2') /* if chosen to copy ID3 V2 */
-	{
-		/* copy id3 v2 tag */
-		DBGPRINT(5, " ID3V2 length=%ld ",length);
-		if (length>0) for (i=0;i<length;i++) fputc(id3v2[i],outfile);
 
-		outpoint=rewind3v1(outpoint); /* remove possible V1 tag at end */
-		inpoint=skipid3v2(inpoint); /* remove possible id3 at beginning */
+	if(tagver == 1 && (tags & 0xE)) importid3v1(outpoint); /* Not the last tag we read */
+	if(tagver == 3 && (tags & 0x8)) importid3v1(filesize);
 
-		/* copy audio data */
-		for (bytesin=0; bytesin < outpoint-inpoint; bytesin++) fputc(getc(mp3file),outfile);
-		printf(" finished.\n");
-	}
-	else /* custom tag */
-	{
-		inpoint=skipid3v2(inpoint); /* remove possible id3 at beginning */
-		outpoint=rewind3v1(outpoint); /* remove possible tag at end */
+	inpoint = skipid3v2(inpoint); /* remove possible id3 tags */
+	outpoint = rewind3v1(outpoint);
 
-		fseek(mp3file, inpoint, SEEK_SET);
+	fseek(mp3file, inpoint, SEEK_SET);
+	copyfile(outfile, mp3file, outpoint-inpoint);
 
-		/* copy audio data */
-		for (bytesin=0; bytesin < outpoint-inpoint; bytesin++) fputc(getc(mp3file),outfile);
+	printf(" finished.");
 
-		printf(" finished.");
+	if (tagver == 1 || tagver == 3) {
+		/* copy ID3v1 */
+		fwrite(id3v1, 1, 128, outfile);
 
-		/* write tag here */
+	} else if (tagver == 0) {
+		/* custom tag */
 		fputs("TAG",outfile);
 
-		printf("\n\nPress <ENTER> for '%s'",temptitle);
-		tmp=readline("\nTitle? ");
-		tmp[30]='\0';
-		if (strlen(tmp)>0) {snprintf(temptitle,31,tmp);}
-		else snprintf(tmp,31,temptitle); /* recycle old title name when hitting ENTER */
-		tmp[30]='\0';
-		fprintf(outfile,tmp);
-		for (i=strlen(tmp) ; i<30 ; i++) fputc(32,outfile);
-		free(tmp);
+		printf("\n\nPress <ENTER> for '%s'\n", temptitle);
+		tmp = readline("Title? ");
+		if(tmp) {
+			if(strlen(tmp)) snprintf(temptitle, 31, tmp);
+			free(tmp);
+		}
+		fprintf(outfile, "%-30s", temptitle);
 
-		printf("\nPress <ENTER> for '%s'",tempartist);
-		tmp=readline("\nArtist? ");
-		tmp[30]='\0';
-		if (strlen(tmp)>0) {snprintf(tempartist,31,tmp);}
-		else snprintf(tmp,31,tempartist); /* recycle old artist name when hitting ENTER */
-		tmp[30]='\0';
-		fprintf(outfile,tmp);
-		for (i=strlen(tmp) ; i<30 ; i++) fputc(32,outfile);
-		free(tmp);
+		printf("\nPress <ENTER> for '%s'\n", tempartist);
+		tmp = readline("Artist? ");
+		if(tmp) {
+			if(strlen(tmp)) snprintf(tempartist, 31, tmp);
+			free(tmp);
+		}
+		fprintf(outfile, "%-30s", tempartist);
 
-		printf("\nPress <ENTER> for '%s'",tempalbum);
-		tmp=readline("\nAlbum? ");
-		tmp[30]='\0';
-		if (strlen(tmp)>0) {snprintf(tempalbum,31,tmp);}
-		else snprintf(tmp,31,tempalbum); /* recycle old album name when hitting ENTER */
-		tmp[30]='\0';
-		fprintf(outfile,tmp);
-		for (i=strlen(tmp) ; i<30 ; i++) fputc(32,outfile);
-		free(tmp);
+		printf("\nPress <ENTER> for '%s'\n", tempalbum);
+		tmp = readline("Album? ");
+		if(tmp) {
+			if(strlen(tmp)) snprintf(tempalbum, 31, tmp);
+			free(tmp);
+		}
+		fprintf(outfile, "%-30s", tempalbum);
 
-		printf("\nPress <ENTER> for '%s'",tempyear);
-		tmp=readline("\nYear? ");
-		tmp[4]='\0';
-		if (strlen(tmp)>0) {snprintf(tempyear,5,tmp);}
-		else snprintf(tmp,5,tempyear); /* recycle old year when hitting ENTER */
-		tmp[4]='\0';
-		fprintf(outfile,tmp);
-		for (i=strlen(tmp) ; i<4 ; i++) fputc(32,outfile);
-		free(tmp);
+		printf("\nPress <ENTER> for '%s'\n", tempyear);
+		tmp = readline("Year? ");
+		if(tmp) {
+			if(strlen(tmp)) snprintf(tempyear, 5, tmp);
+			free(tmp);
+		}
+		fprintf(outfile, "%-4s", tempyear);
 
-		printf("\nPress <ENTER> for '%s'",tempcomment);
-		tmp=readline("\nComment? ");
-		tmp[30]='\0';
-		if (strlen(tmp)>0) {snprintf(tempcomment,31,tmp);}
-		else snprintf(tmp,31,tempcomment); /* recycle old comment when hitting ENTER */
-		tmp[30]='\0';
-		fprintf(outfile,tmp);
-		for (i=strlen(tmp) ; i<30 ; i++) fputc(32,outfile);
-		free(tmp);
+		printf("\nPress <ENTER> for '%s'\n", tempcomment);
+		tmp = readline("Comment? ");
+		if(tmp) {
+			if(strlen(tmp)) snprintf(tempcomment, 31, tmp);
+			free(tmp);
+		}
+		fprintf(outfile, "%-30s", tempcomment);
 
 		fputc(genre,outfile);
-		genre=-1;
 
 		snprintf(title,31,temptitle);
 		snprintf(artist,31,tempartist);
@@ -2473,7 +2420,7 @@ void savewithtag(void)
 			if (number>99)
 			{
 				printf("\n  File NOT written. Please choose another title.  \n");
-				goto savewithtag_ret;
+				return;
 			}
 			snprintf(newname,FN_LEN-1, "%s - %s_%02u.mp3",artist,title,number);
 			fp = fopen(newname,"r");
@@ -2489,18 +2436,9 @@ void savewithtag(void)
 	** Only after writing ID3 tag we know the name, so it must be renamed after writing. */
 	else rename(outname, newname);
 
-	if (tagver=='2') printf("\n  saved %u:%02.0f - %u:%02.0f with ID3 V2 tag to '%s'.  \n",pos2mins(inpoint),pos2secs(inpoint),pos2mins(outpoint),pos2secs(outpoint),newname);
-	else printf("\n  saved %u:%02.0f - %u:%02.0f with ID3 V1 tag to '%s'.  \n",pos2mins(inpoint),pos2secs(inpoint),pos2mins(outpoint),pos2secs(outpoint),newname);
+	printf("\n  saved %u:%02.0f - %u:%02.0f with ID3v%c tag to '%s'.  \n", pos2mins(inpoint),pos2secs(inpoint), pos2mins(outpoint),pos2secs(outpoint), (tagver==2||tagver==4)?'2':'1', newname);
 
 	overwrite=0;
-savewithtag_ret:
-	free(tempartist);
-	free(temptitle);
-	free(tempalbum);
-	free(tempyear);
-	free(tempcomment);
-	free(title1);
-	free(title2);
 	return;
 }
 
@@ -2888,7 +2826,7 @@ int main(int argc, char *argv[])
 	int b,c,d,char1,showinfo=0,rawmode=0,fix_channels=0;
 	unsigned long pos, startpos;
 	real ft_factor = 2;
-	char *tablename = malloc(FN_LEN);
+	char *tablename = NULL;
 	char *prefix = malloc(FN_LEN);
 	void (*play)(long playpos) = playsel;
 	prefix[0] = 0;
@@ -2939,12 +2877,11 @@ int main(int argc, char *argv[])
 // 					exactmode=1;
 					break;
 				case 'f':
-					if (NULL == (timefile = fopen(optarg,"rb") ) )
-					{
+					if (NULL == (timefile = fopen(optarg,"rb") ) ) {
 						perror(optarg);
 						exitseq(3);
 					}
-					else { tablename=optarg; hastable=1; }
+					else tablename = optarg;
 					break;
 				case 'h':
 					usage("");
@@ -3095,7 +3032,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* timetable used? */
-	if (hastable==1)
+	if (tablename)
 	{
 		nonint=1;
 		cutfromtable(tablename,prefix);
