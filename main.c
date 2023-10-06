@@ -1646,7 +1646,7 @@ long rewind3v2(long seekpos)
 long skipid3v2(long seekpos)
 {
 	long oldseekpos=seekpos;   /* remember seekpos */
-	unsigned char buffer[15];
+	unsigned char buffer[10] = {0};
 	int pos, footer, length;
 
 	if (seekpos+10>filesize) return seekpos;
@@ -1663,6 +1663,7 @@ long skipid3v2(long seekpos)
 		footer=buffer[5]; footer=footer<<3; footer=footer>>7; footer=footer*10; /* check for footer presence */
 		length=((buffer[6]*128+buffer[7])*128+buffer[8])*128+buffer[9];
 		id3v2 = (unsigned char*)realloc(id3v2, 10+length+footer);
+		if (!id3v2) exit(2);
 		seekpos=seekpos+10+length+footer;
 	}
 	fseek(mp3file, oldseekpos, SEEK_SET); /* really necessary? */
