@@ -436,7 +436,7 @@ long nextframe(long seekpos)
 	fseek(mp3file, seekpos, SEEK_SET);
 
 	/* if seekpos is a header and framesize is valid, jump to next header via framesize, else move on one byte */
-	fread(hdrbuf, 1, 4, mp3file);
+	if(fread(hdrbuf, 1, 4, mp3file) < 4) return seekpos;
 	if (is_hdr(hdrbuf))
 		seekpos = seekpos + frame_sz(hdrbuf);
 	else
@@ -463,7 +463,7 @@ long nextframe(long seekpos)
 	if (seekpos + (framesz = frame_sz(hdrbuf)) + 4 < filesize)
 	{
 		fseek(mp3file, seekpos + framesz, SEEK_SET);
-		fread(hdrbuf, 1, 4, mp3file);
+		if(fread(hdrbuf, 1, 4, mp3file) < 4) return seekpos;
 		if (!is_hdr(hdrbuf))
 			seekpos = nextframe(seekpos + 1);
 	}
@@ -485,7 +485,7 @@ long prevframe(long seekpos)
 	/* find next header, start right at seekpos */
 //	nextheaderpos = nextframe(seekpos);
 	fseek(mp3file, seekpos, SEEK_SET);
-	fread(hdrbuf, 1, 4, mp3file);
+	if(fread(hdrbuf, 1, 4, mp3file) < 4) return seekpos;
 	if (!is_hdr(hdrbuf))
 		nextheaderpos = nextframe(seekpos + 1);
 	else
@@ -734,7 +734,7 @@ real avbitrate(void)
 //		printf("\na=%u\n",a);
 		if (hdrbuf[0]==255)
 		{
-			fread(&hdrbuf[1], 1, 3, mp3file);
+			if(fread(&hdrbuf[1], 1, 3, mp3file) < 3) break;
 			thisfrsize = frame_sz(hdrbuf);                                     /* cache framesize(b,c,d) */
 //			if (isheader(b,c,d)==1 && thisfrsize!=1 && sampfreq(b,c)!=1)     /* next frame found */
 			if (thisfrsize!=1 && sampfreq(hdrbuf[1], hdrbuf[2])==fix_sampfreq)                /* next frame found */
@@ -1137,7 +1137,7 @@ long importid3v2(long seekpos)
 
 	/* copy whole tag to buffer */
 	fseek(mp3file, seekpos, SEEK_SET);
-	fread(id3v2, 1, length, mp3file);
+	if(fread(id3v2, 1, length, mp3file) < length) return 0;
 
 	minorv=id3v2[3]; if (minorv==3) ssf=2;
 	DBGPRINT(5, "\n *debug* found ID3 version 2.%u.%u\n", minorv, id3v2[4]);
@@ -1535,14 +1535,14 @@ int importid3v1(long seekpos)
 	if (fgetc(mp3file)!='T' || fgetc(mp3file)!='A' || fgetc(mp3file)!='G' )
 	return 0; /* if TAG is not there */
 
-	fgets(title,31,mp3file); /* save title */
+	if(!fgets(title,31,mp3file))return 0; /* save title */
 	for (j=29; title[j]==' ' ; j--) title[j]='\0'; /* erase trailing spaces */
-	fgets(artist,31,mp3file); /* save artist */
+	if(!fgets(artist,31,mp3file))return 0; /* save artist */
 	for (j=29; artist[j]==' ' ; j--) artist[j]='\0'; /* erase trailing spaces */
-	fgets(album,31,mp3file); /* save album */
+	if(!fgets(album,31,mp3file))return 0; /* save album */
 	for (j=29; album[j]==' ' ; j--) album[j]='\0'; /* erase trailing spaces */
-	fgets(year,5,mp3file); /* save year */
-	fgets(comment,31,mp3file); /* save comment */
+	if(!fgets(year,5,mp3file))return 0; /* save year */
+	if(!fgets(comment,31,mp3file))return 0; /* save comment */
 	for (j=29; comment[j]==' ' ; j--) comment[j]='\0'; /* erase trailing spaces */
 	genre=fgetc(mp3file);
 
@@ -1834,12 +1834,11 @@ void playsel(long playpos)
 	if (!mute)
 	{
  		if (card > 1)
-		snprintf(command,1022," %s %s %s%u %s %s %s","mpg123",playname,"-a /dev/dsp",card-1,">",logname,"2>&1 &");
+			snprintf(command,1022," %s %s %s%u %s %s %s","mpg123",playname,"-a /dev/dsp",card-1,">",logname,"2>&1 &");
 		else
-		snprintf(command,1022," %s %s %s %s %s","mpg123",playname,">",logname,"2>&1 &");
-		system(command);  /* play mp3 excerpt */
+			snprintf(command,1022," %s %s %s %s %s","mpg123",playname,">",logname,"2>&1 &");
 
-// 		printf("%s\n",command); /* debug */
+		if(system(command)) printf("Error executing %s\n", command); /* play mp3 excerpt */
 
 		printf("  playing at %4u:%05.2f",pos2mins(pos),pos2secs(pos));
 
@@ -1848,7 +1847,7 @@ void playsel(long playpos)
 		{
 			i=0; while (i<howlong*20)
 			{
- 				printf("\b\b\b\b\b\b\b\b\b\b\b %4u:%05.2f",frame2mins(tempfrnr),frame2secs(tempfrnr));
+				printf("\b\b\b\b\b\b\b\b\b\b\b %4u:%05.2f",frame2mins(tempfrnr),frame2secs(tempfrnr));
 				usleep(50000);
 				tempfrnr=(real)tempfrnr+(real)50/(real)fix_frametime+1;
 				if (tempfrnr>totalframes) break;
@@ -1859,7 +1858,7 @@ void playsel(long playpos)
 	}
 	else
 	{
- 		printf("  position is %4u:%05.2f / ",frame2mins(framenumber),frame2secs(framenumber));
+		printf("  position is %4u:%05.2f / ",frame2mins(framenumber),frame2secs(framenumber));
 		printf("%u:%05.2f  ",totalmins,totalsecs);
 	}
 

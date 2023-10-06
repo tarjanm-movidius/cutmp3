@@ -5,7 +5,7 @@ BINDIR=${PREFIX}/bin
 DATADIR=${PREFIX}/share
 MANDIR=${PREFIX}/share/man/man1
 DOCDIR=${DATADIR}/doc/${NAME}-${VERSION}
-CFLAGS?=-Wall -Wformat-security
+CFLAGS?=-Wall -Wformat-security -Wunused-result
 #CFLAGS+=-DDEBUG
 
 all:
