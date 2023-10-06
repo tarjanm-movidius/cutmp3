@@ -1,4 +1,7 @@
 
+version 3.0.3:
+Quickfix, eliminated warnings -Wunused-result and -Wformat-security
+
 version 3.0.2:
 Minor bugfixes, eliminated warnings
 

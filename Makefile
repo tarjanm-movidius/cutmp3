@@ -1,11 +1,11 @@
 NAME=cutmp3
-VERSION=3.0.2
+VERSION=3.0.3
 PREFIX?=/usr/local
 BINDIR=${PREFIX}/bin
 DATADIR=${PREFIX}/share
 MANDIR=${PREFIX}/share/man/man1
 DOCDIR=${DATADIR}/doc/${NAME}-${VERSION}
-CFLAGS?=-Wall
+CFLAGS?=-Wall -Wformat-security
 #CFLAGS+=-DDEBUG
 
 all:

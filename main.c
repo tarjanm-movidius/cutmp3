@@ -16,7 +16,7 @@
 
 #include "cutmp3.h"
 
-#define VERSION "3.0.2"
+#define VERSION "3.0.3"
 #define YEAR "2022"
 
 /* general buffersize */
@@ -2136,7 +2136,7 @@ void savesel(char *prefix)
 	}
 
 	/* forced output file name used? */
-	if (forced_file==1) snprintf (outname, FN_LEN-1, forcedname);
+	if (forced_file==1) snprintf (outname, FN_LEN-1,"%s", forcedname);
 
 	/* open outfile */
 // 	if (NULL== (outfile = fopen(outname,"wb"))){perror("\ncutmp3: cannot not write output file! read-only filesystem?");exitseq(10);}
@@ -2270,10 +2270,10 @@ void savewithtag(void)
 // 	inpoint=rewind3v2(inpoint);  not always useful!
 
 	zaptitle(); importid3v1(outpoint);
-	if (strlen(title)>0) {hastag=1; snprintf(title1,31,title);} /* check if selection has tag v1 */
+	if (strlen(title)>0) {hastag=1; snprintf(title1,31,"%s",title);} /* check if selection has tag v1 */
 
 	zaptitle(); length=importid3v2(inpoint);
-	if (strlen(title)>0) {hasid3=1; snprintf(title2,31,title);} /* check if selection has tag v2 */
+	if (strlen(title)>0) {hasid3=1; snprintf(title2,31,"%s",title);} /* check if selection has tag v2 */
 
 	if (hastag+hasid3==2) /* has both tags in selection */
 	{
@@ -2313,8 +2313,8 @@ void savewithtag(void)
 	else if (hastag+hasid3==0) /* no tag at all, get them from whole file */
 	{
 		hasid3=hastag=0;
-		zaptitle(); importid3v1(filesize); if (strlen(title)>0) {hastag=1; snprintf(title1,31,title);}
-		zaptitle(); length=importid3v2(0);        if (strlen(title)>0) {hasid3=1; snprintf(title2,31,title);}
+		zaptitle(); importid3v1(filesize); if (strlen(title)>0) {hastag=1; snprintf(title1,31,"%s",title);}
+		zaptitle(); length=importid3v2(0);        if (strlen(title)>0) {hasid3=1; snprintf(title2,31,"%s",title);}
 		if (hastag+hasid3==2) /* whole file has both tags */
 		{
  			printf("\n\nImported titles from %s:",filename);
@@ -2348,7 +2348,7 @@ void savewithtag(void)
 	/* forced output file name used? */
 	if (forced_file==1)
 	{
-		snprintf (outname, FN_LEN-1, forcedname);
+		snprintf (outname, FN_LEN-1,"%s", forcedname);
 	}
 
 	/*******************/
@@ -2402,58 +2402,58 @@ void savewithtag(void)
 		printf("\n\nPress <ENTER> for '%s'",temptitle);
 		tmp=readline("\nTitle? ");
 		tmp[30]='\0';
-		if (strlen(tmp)>0) {snprintf(temptitle,31,tmp);}
-		else snprintf(tmp,31,temptitle); /* recycle old title name when hitting ENTER */
+		if (strlen(tmp)>0) {snprintf(temptitle,31,"%s",tmp);}
+		else snprintf(tmp,31,"%s",temptitle); /* recycle old title name when hitting ENTER */
 		tmp[30]='\0';
-		fprintf(outfile,tmp);
+		fprintf(outfile,"%s",tmp);
 		for (i=strlen(tmp) ; i<30 ; i++) fputc(32,outfile);
 		free(tmp);
 
 		printf("\nPress <ENTER> for '%s'",tempartist);
 		tmp=readline("\nArtist? ");
 		tmp[30]='\0';
-		if (strlen(tmp)>0) {snprintf(tempartist,31,tmp);}
-		else snprintf(tmp,31,tempartist); /* recycle old artist name when hitting ENTER */
+		if (strlen(tmp)>0) {snprintf(tempartist,31,"%s",tmp);}
+		else snprintf(tmp,31,"%s",tempartist); /* recycle old artist name when hitting ENTER */
 		tmp[30]='\0';
-		fprintf(outfile,tmp);
+		fprintf(outfile,"%s",tmp);
 		for (i=strlen(tmp) ; i<30 ; i++) fputc(32,outfile);
 		free(tmp);
 
 		printf("\nPress <ENTER> for '%s'",tempalbum);
 		tmp=readline("\nAlbum? ");
 		tmp[30]='\0';
-		if (strlen(tmp)>0) {snprintf(tempalbum,31,tmp);}
-		else snprintf(tmp,31,tempalbum); /* recycle old album name when hitting ENTER */
+		if (strlen(tmp)>0) {snprintf(tempalbum,31,"%s",tmp);}
+		else snprintf(tmp,31,"%s",tempalbum); /* recycle old album name when hitting ENTER */
 		tmp[30]='\0';
-		fprintf(outfile,tmp);
+		fprintf(outfile,"%s",tmp);
 		for (i=strlen(tmp) ; i<30 ; i++) fputc(32,outfile);
 		free(tmp);
 
 		printf("\nPress <ENTER> for '%s'",tempyear);
 		tmp=readline("\nYear? ");
 		tmp[4]='\0';
-		if (strlen(tmp)>0) {snprintf(tempyear,5,tmp);}
-		else snprintf(tmp,5,tempyear); /* recycle old year when hitting ENTER */
+		if (strlen(tmp)>0) {snprintf(tempyear,5,"%s",tmp);}
+		else snprintf(tmp,5,"%s",tempyear); /* recycle old year when hitting ENTER */
 		tmp[4]='\0';
-		fprintf(outfile,tmp);
+		fprintf(outfile,"%s",tmp);
 		for (i=strlen(tmp) ; i<4 ; i++) fputc(32,outfile);
 		free(tmp);
 
 		printf("\nPress <ENTER> for '%s'",tempcomment);
 		tmp=readline("\nComment? ");
 		tmp[30]='\0';
-		if (strlen(tmp)>0) {snprintf(tempcomment,31,tmp);}
-		else snprintf(tmp,31,tempcomment); /* recycle old comment when hitting ENTER */
+		if (strlen(tmp)>0) {snprintf(tempcomment,31,"%s",tmp);}
+		else snprintf(tmp,31,"%s",tempcomment); /* recycle old comment when hitting ENTER */
 		tmp[30]='\0';
-		fprintf(outfile,tmp);
+		fprintf(outfile,"%s",tmp);
 		for (i=strlen(tmp) ; i<30 ; i++) fputc(32,outfile);
 		free(tmp);
 
 		fputc(genre,outfile);
 		genre=-1;
 
-		snprintf(title,31,temptitle);
-		snprintf(artist,31,tempartist);
+		snprintf(title,31,"%s",temptitle);
+		snprintf(artist,31,"%s",tempartist);
 	}
 
 	fclose(outfile);
@@ -2487,7 +2487,7 @@ void savewithtag(void)
 	}
 
 	/* forced output file name used? Then show correct file name in summary. */
-	if (forced_file==1) snprintf (newname, FN_LEN-1, forcedname);
+	if (forced_file==1) snprintf (newname, FN_LEN-1,"%s", forcedname);
 	/* rename file only if not forced name: **
 	** Only after writing ID3 tag we know the name, so it must be renamed after writing. */
 	else rename(outname, newname);
@@ -2673,9 +2673,9 @@ void writetable()
 	{
 		perror("\ncutmp3: failed writing temporary timetable in /tmp");exitseq(11);
 	}
-	fprintf(tblfile, userin);
+	fprintf(tblfile, "%s", userin);
 	fprintf(tblfile, " ");
-	fprintf(tblfile, userout);
+	fprintf(tblfile, "%s", userout);
 	fprintf(tblfile, "\n");
 	fclose(tblfile);
 	a_b_used=1;
@@ -2977,7 +2977,7 @@ int main(int argc, char *argv[])
 					rawmode=1;
 					break;
 				case 'o':
-					if (optarg!=0) snprintf(prefix,FN_LEN-1,optarg);
+					if (optarg!=0) snprintf(prefix,FN_LEN-1,"%s",optarg);
 //					else usage("Error: missing outputprefix");
 					forced_prefix=1;
 					break;
