@@ -432,7 +432,7 @@ long nextframe(long seekpos)
 	fseek(mp3file, seekpos, SEEK_SET);
 
 	/* if seekpos is a header and framesize is valid, jump to next header via framesize, else move on one byte */
-	fread(hdrbuf, 1, 4, mp3file);
+	if(fread(hdrbuf, 1, 4, mp3file) < 4) return seekpos;
 	if (is_hdr(hdrbuf))
 		seekpos = seekpos + frame_sz(hdrbuf);
 	else
@@ -459,7 +459,7 @@ long nextframe(long seekpos)
 	if (seekpos + (framesz = frame_sz(hdrbuf)) + 4 < filesize)
 	{
 		fseek(mp3file, seekpos + framesz, SEEK_SET);
-		fread(hdrbuf, 1, 4, mp3file);
+		if(fread(hdrbuf, 1, 4, mp3file) < 4) return seekpos;
 		if (!is_hdr(hdrbuf))
 			seekpos = nextframe(seekpos + 1);
 	}
@@ -481,7 +481,7 @@ long prevframe(long seekpos)
 	/* find next header, start right at seekpos */
 //	nextheaderpos = nextframe(seekpos);
 	fseek(mp3file, seekpos, SEEK_SET);
-	fread(hdrbuf, 1, 4, mp3file);
+	if(fread(hdrbuf, 1, 4, mp3file) < 4) return seekpos;
 	if (!is_hdr(hdrbuf))
 		nextheaderpos = nextframe(seekpos + 1);
 	else
@@ -720,7 +720,7 @@ void copyfile(FILE *outfile, FILE *infile, size_t nbyte)
 		read_sz = fread(buf, 1, nbyte < FS_BLOCK_SIZE ? nbyte : FS_BLOCK_SIZE, infile);
 		if(read_sz < 0) {perror("copyfile read()"); exitseq(10);}
 		nbyte -= read_sz;
-		while(read_sz) {
+		while(read_sz>0) {
 			write_sz = fwrite(buf, 1, read_sz, outfile);
 			if(write_sz < 0) {perror("copyfile write()"); exitseq(10);}
 			read_sz -= write_sz;
@@ -749,7 +749,7 @@ real avbitrate(void)
 //		printf("\na=%u\n",a);
 		if (hdrbuf[0]==255)
 		{
-			fread(&hdrbuf[1], 1, 3, mp3file);
+			if(fread(&hdrbuf[1], 1, 3, mp3file) < 3) break;
 			thisfrsize = frame_sz(hdrbuf);                                     /* cache framesize(b,c,d) */
 //			if (isheader(b,c,d)==1 && thisfrsize!=1 && sampfreq(b,c)!=1)     /* next frame found */
 			if (thisfrsize!=1 && sampfreq(hdrbuf[1], hdrbuf[2])==fix_sampfreq)                /* next frame found */
@@ -1152,7 +1152,7 @@ long importid3v2(long seekpos)
 
 	/* copy whole tag to buffer */
 	fseek(mp3file, seekpos, SEEK_SET);
-	fread(id3v2, 1, length, mp3file);
+	if(fread(id3v2, 1, length, mp3file) < length) return 0;
 
 	minorv=id3v2[3]; if (minorv==3) ssf=2;
 	DBGPRINT(5, "\n *debug* found ID3 version 2.%u.%u\n", minorv, id3v2[4]);
@@ -1550,14 +1550,14 @@ int importid3v1(long seekpos)
 	if (fgetc(mp3file)!='T' || fgetc(mp3file)!='A' || fgetc(mp3file)!='G' )
 	return 0; /* if TAG is not there */
 
-	fgets(title,31,mp3file); /* save title */
+	if(!fgets(title,31,mp3file))return 0; /* save title */
 	for (j=29; title[j]==' ' ; j--) title[j]='\0'; /* erase trailing spaces */
-	fgets(artist,31,mp3file); /* save artist */
+	if(!fgets(artist,31,mp3file))return 0; /* save artist */
 	for (j=29; artist[j]==' ' ; j--) artist[j]='\0'; /* erase trailing spaces */
-	fgets(album,31,mp3file); /* save album */
+	if(!fgets(album,31,mp3file))return 0; /* save album */
 	for (j=29; album[j]==' ' ; j--) album[j]='\0'; /* erase trailing spaces */
-	fgets(year,5,mp3file); /* save year */
-	fgets(comment,31,mp3file); /* save comment */
+	if(!fgets(year,5,mp3file))return 0; /* save year */
+	if(!fgets(comment,31,mp3file))return 0; /* save comment */
 	for (j=29; comment[j]==' ' ; j--) comment[j]='\0'; /* erase trailing spaces */
 	genre=fgetc(mp3file);
 
@@ -1661,7 +1661,7 @@ long rewind3v2(long seekpos)
 long skipid3v2(long seekpos)
 {
 	long oldseekpos=seekpos;   /* remember seekpos */
-	unsigned char buffer[15];
+	unsigned char buffer[10] = {0};
 	int pos, footer, length;
 
 	if (seekpos+10>filesize) return seekpos;
@@ -1678,6 +1678,7 @@ long skipid3v2(long seekpos)
 		footer=buffer[5]; footer=footer<<3; footer=footer>>7; footer=footer*10; /* check for footer presence */
 		length=((buffer[6]*128+buffer[7])*128+buffer[8])*128+buffer[9];
 		id3v2 = (unsigned char*)realloc(id3v2, 10+length+footer);
+		if (!id3v2) exit(2);
 		seekpos=seekpos+10+length+footer;
 	}
 	fseek(mp3file, oldseekpos, SEEK_SET); /* really necessary? */
@@ -1766,7 +1767,7 @@ void writeconf(void)
 	FILE *conffile;
 	char filename1[FN_LEN];
 
-	snprintf(filename1,FN_LEN-1,"%s/%s",getenv("HOME"),".cutmp3rc");
+	snprintf(filename1, FN_LEN, "%s/%s", getenv("HOME"), ".cutmp3rc");
 	/* check for conffile */
 	if (NULL== (conffile = fopen(filename1,"wb")))
 	{
@@ -1834,13 +1835,13 @@ void playsel(long playpos)
 		if (playpos > filesize) playpos=filesize;
 		if ((fd = mkstemp(playname)) == -1 || (NULL== (outfile = fdopen(fd, "w+b"))) )
 		{
-			perror("\ncutmp3: failed writing temporary mp3 in /tmp");exitseq(9);
+			perror("\ncutmp3: failed writing temporary mp3 in /tmp"); exitseq(9);
 		} else {
 			strncpy(prev_playname, playname, 16);
+			fseek(mp3file, playpos, SEEK_SET);
+			copyfile(outfile, mp3file, playsize);
+			fclose(outfile);
 		}
-		fseek(mp3file, playpos, SEEK_SET);
-		copyfile(outfile, mp3file, playsize);
-		fclose(outfile);
 	}
 
 	pos=playpos;
@@ -1848,12 +1849,11 @@ void playsel(long playpos)
 	if (!mute)
 	{
  		if (card > 1)
-		snprintf(command,1022," %s %s %s%u %s %s %s","mpg123",playname,"-a /dev/dsp",card-1,">",logname,"2>&1 &");
+			snprintf(command,1022," %s %s %s%u %s %s %s","mpg123",playname,"-a /dev/dsp",card-1,">",logname,"2>&1 &");
 		else
-		snprintf(command,1022," %s %s %s %s %s","mpg123",playname,">",logname,"2>&1 &");
-		system(command);  /* play mp3 excerpt */
+			snprintf(command,1022," %s %s %s %s %s","mpg123",playname,">",logname,"2>&1 &");
 
-// 		printf("%s\n",command); /* debug */
+		if(system(command)) printf("Error executing %s\n", command); /* play mp3 excerpt */
 
 		printf("  playing at %4u:%05.2f",pos2mins(pos),pos2secs(pos));
 
@@ -1862,7 +1862,7 @@ void playsel(long playpos)
 		{
 			i=0; while (i<howlong*20)
 			{
- 				printf("\b\b\b\b\b\b\b\b\b\b\b %4u:%05.2f",frame2mins(tempfrnr),frame2secs(tempfrnr));
+				printf("\b\b\b\b\b\b\b\b\b\b\b %4u:%05.2f",frame2mins(tempfrnr),frame2secs(tempfrnr));
 				usleep(50000);
 				tempfrnr=(real)tempfrnr+(real)50/(real)fix_frametime+1;
 				if (tempfrnr>totalframes) break;
@@ -1873,7 +1873,7 @@ void playsel(long playpos)
 	}
 	else
 	{
- 		printf("  position is %4u:%05.2f / ",frame2mins(framenumber),frame2secs(framenumber));
+		printf("  position is %4u:%05.2f / ",frame2mins(framenumber),frame2secs(framenumber));
 		printf("%u:%05.2f  ",totalmins,totalsecs);
 	}
 
@@ -1928,8 +1928,8 @@ void readconf(void)
 	unsigned char conf[BUFFER];
 	char filename1[FN_LEN];
 
-	snprintf(filename1,FN_LEN-1,"%s/%s",getenv("HOME"),".cutmp3rc");      /* get name of conffile */
-	if (NULL == (conffile = fopen(filename1,"rb"))) return;      /* check for conffile */
+	snprintf(filename1, FN_LEN, "%s/%s", getenv("HOME"), ".cutmp3rc");	/* get name of conffile */
+	if (NULL == (conffile = fopen(filename1, "rb"))) return;			/* check for conffile */
 	fseek(conffile, 0, SEEK_END);
 	confsize=ftell(conffile);         /* size of conffile */
 
@@ -2051,8 +2051,8 @@ void savesel(char *prefix)
 	/* title known? */
 	if (!usefilename && !no_tags && !forced_prefix && strlen(title)>0)
 	{
-		snprintf(outname,FN_LEN-1, "%s - %s.mp3",artist,title);
-		fp = fopen(outname,"r");
+		snprintf(outname, FN_LEN, "%s - %s.mp3", artist, title);
+		fp = fopen(outname, "r");
 		if (fp != NULL) /* file exists? */
 		{
 			while(fp != NULL) /* test if file exists */
@@ -2064,19 +2064,19 @@ void savesel(char *prefix)
 					printf("\n\nFilename already exists 99 times.\nPlease save with tag (press t) and choose another title. \n");
 					goto savesel_ret;
 				}
-				snprintf(outname,FN_LEN-1, "%s - %s_%02u.mp3",artist,title,number);
+				snprintf(outname, FN_LEN, "%s - %s_%02u.mp3", artist, title, number);
 				fp = fopen(outname,"r");
 			}
 			number=number-overwrite; /* step one number back in case of overwrite mode */
-			if (number==1) snprintf(outname,FN_LEN-1, "%s - %s.mp3",artist,title); /* overwrite file without number */
-			else snprintf(outname,FN_LEN-1, "%s - %s_%02u.mp3",artist,title,number);
+			if (number==1) snprintf(outname, FN_LEN, "%s - %s.mp3", artist, title); /* overwrite file without number */
+			else snprintf(outname, FN_LEN, "%s - %s_%02u.mp3", artist, title, number);
 		}
 	}
 	else
 	/* title not known */
 	{
 		/* outname = prefix number . suffix */
-		snprintf(outname,FN_LEN-1, "%s%04u.mp3",prefix,number);
+		snprintf(outname, FN_LEN, "%s%04u.mp3", prefix, number);
 
 		if (inpoint > filesize)
 		{
@@ -2140,16 +2140,16 @@ void savesel(char *prefix)
 			number++;
 			fclose(fp);
 			if (number>9999) usage("9999 files written. Please choose another prefix via '-o prefix.'");
-			snprintf(outname,FN_LEN-1, "%s%04u.mp3",prefix,number);
+			snprintf(outname, FN_LEN, "%s%04u.mp3", prefix, number);
 			fp = fopen(outname,"r");
 		}
 		number=number-overwrite; /* step one number back in case of overwrite mode */
 		if (number==0) number=1;
-		snprintf(outname,FN_LEN-1, "%s%04u.mp3",prefix,number);
+		snprintf(outname, FN_LEN, "%s%04u.mp3", prefix, number);
 	}
 
 	/* forced output file name used? */
-	if (forced_file==1) snprintf (outname, FN_LEN-1, forcedname);
+	if (forced_file==1) strncpy (outname, forcedname, FN_LEN-1);
 
 	/* open outfile */
 // 	if (NULL== (outfile = fopen(outname,"wb"))){perror("\ncutmp3: cannot not write output file! read-only filesystem?");exitseq(10);}
@@ -2222,6 +2222,23 @@ savesel_ret:
 /* This function saves the selection interactively with ID3 tags */
 void savewithtag(void)
 {
+
+#define QRY_AND_UPD(tempvar_, len_, querystr_) if(1) { \
+	char *tmp = NULL; \
+	printf("\n\nPress <ENTER> for '%s'\n", (tempvar_)); \
+	tmp = readline(querystr_); \
+	if(tmp) { \
+		if(tmp[0]) { \
+			register unsigned ii; \
+			for(ii=0; ii<(len_) && tmp[ii]; ii++) (tempvar_)[ii] = tmp[ii]; \
+			/*for(ii=0; ii<(len_)           ; ii++) (tempvar_)[ii] = ' ';*/ \
+			(tempvar_)[ii] = 0; \
+		} \
+		free(tmp); \
+	} \
+	fprintf(outfile, "%-" #len_ "s", (tempvar_)); \
+}
+
 	static char tempartist[31]  = {0};
 	static char temptitle[31]   = {0};
 	static char tempalbum[31]   = {0};
@@ -2230,9 +2247,7 @@ void savewithtag(void)
 	int i = 1, tags = 0, tagver = 0; //, hasid3=0, hastag=0;
 	unsigned int number=1;
 	char outname[FN_LEN]="cutmp3.tmp";
-	char outname2[FN_LEN]="\0";
-	char *newname=outname2;
-	char *tmp = NULL;
+	char *newname;
 	FILE *fp;
 	FILE *outfile;
 	long oldinpoint=inpoint;
@@ -2259,6 +2274,7 @@ void savewithtag(void)
 		printf("  ERROR: endpoint (%u:%05.2f) must be after startpoint (%u:%05.2f)!  \n",pos2mins(outpoint),pos2secs(outpoint),pos2mins(inpoint),pos2secs(inpoint));
 		return;
 	}
+	newname = (char*)malloc(FN_LEN);
 
 	/*********************************/
 	/* Choose ID3 V2 or V1 or custom */
@@ -2320,7 +2336,7 @@ void savewithtag(void)
 	/* forced output file name used? */
 	if (forced_file==1)
 	{
-		snprintf (outname, FN_LEN-1, forcedname);
+		strncpy (outname, forcedname, FN_LEN-1);
 	}
 
 	/*******************/
@@ -2354,50 +2370,16 @@ void savewithtag(void)
 		/* custom tag */
 		fputs("TAG",outfile);
 
-		printf("\n\nPress <ENTER> for '%s'\n", temptitle);
-		tmp = readline("Title? ");
-		if(tmp) {
-			if(strlen(tmp)) snprintf(temptitle, 31, tmp);
-			free(tmp);
-		}
-		fprintf(outfile, "%-30s", temptitle);
-
-		printf("\nPress <ENTER> for '%s'\n", tempartist);
-		tmp = readline("Artist? ");
-		if(tmp) {
-			if(strlen(tmp)) snprintf(tempartist, 31, tmp);
-			free(tmp);
-		}
-		fprintf(outfile, "%-30s", tempartist);
-
-		printf("\nPress <ENTER> for '%s'\n", tempalbum);
-		tmp = readline("Album? ");
-		if(tmp) {
-			if(strlen(tmp)) snprintf(tempalbum, 31, tmp);
-			free(tmp);
-		}
-		fprintf(outfile, "%-30s", tempalbum);
-
-		printf("\nPress <ENTER> for '%s'\n", tempyear);
-		tmp = readline("Year? ");
-		if(tmp) {
-			if(strlen(tmp)) snprintf(tempyear, 5, tmp);
-			free(tmp);
-		}
-		fprintf(outfile, "%-4s", tempyear);
-
-		printf("\nPress <ENTER> for '%s'\n", tempcomment);
-		tmp = readline("Comment? ");
-		if(tmp) {
-			if(strlen(tmp)) snprintf(tempcomment, 31, tmp);
-			free(tmp);
-		}
-		fprintf(outfile, "%-30s", tempcomment);
+		QRY_AND_UPD(temptitle,   30, "Title? ")
+		QRY_AND_UPD(tempartist,  30, "Artist? ")
+		QRY_AND_UPD(tempalbum,   30, "Album? ")
+		QRY_AND_UPD(tempyear,     4, "Year? ")
+		QRY_AND_UPD(tempcomment, 30, "Comment? ")
 
 		fputc(genre,outfile);
 
-		snprintf(title,31,temptitle);
-		snprintf(artist,31,tempartist);
+		strncpy(title, temptitle, 31);
+		strncpy(artist, tempartist, 31);
 	}
 
 	fclose(outfile);
@@ -2409,8 +2391,8 @@ void savewithtag(void)
 	/********************/
 	/* file rename part */
 	/********************/
-	snprintf(newname,FN_LEN-1, "%s - %s.mp3",artist,title);
-	fp = fopen(newname,"r");
+	snprintf(newname, FN_LEN, "%s - %s.mp3", artist, title);
+	fp = fopen(newname, "r");
 	if (fp != NULL) /* file exists? */
 	{
 		while(fp != NULL) /* test if file exists */
@@ -2422,16 +2404,16 @@ void savewithtag(void)
 				printf("\n  File NOT written. Please choose another title.  \n");
 				return;
 			}
-			snprintf(newname,FN_LEN-1, "%s - %s_%02u.mp3",artist,title,number);
-			fp = fopen(newname,"r");
+			snprintf(newname, FN_LEN, "%s - %s_%02u.mp3", artist, title, number);
+			fp = fopen(newname, "r");
 		}
 		number=number-overwrite; /* step one number back in case of overwrite mode */
-		if (number==1) snprintf(newname,FN_LEN-1, "%s - %s.mp3",artist,title); /* overwrite file without number */
-		else snprintf(newname,FN_LEN-1, "%s - %s_%02u.mp3",artist,title,number);
+		if (number==1) snprintf(newname, FN_LEN, "%s - %s.mp3", artist, title); /* overwrite file without number */
+		else snprintf(newname, FN_LEN, "%s - %s_%02u.mp3", artist, title, number);
 	}
 
 	/* forced output file name used? Then show correct file name in summary. */
-	if (forced_file==1) snprintf (newname, FN_LEN-1, forcedname);
+	if (forced_file==1) strncpy (newname, forcedname, FN_LEN-1);
 	/* rename file only if not forced name: **
 	** Only after writing ID3 tag we know the name, so it must be renamed after writing. */
 	else rename(outname, newname);
@@ -2439,6 +2421,7 @@ void savewithtag(void)
 	printf("\n  saved %u:%02.0f - %u:%02.0f with ID3v%c tag to '%s'.  \n", pos2mins(inpoint),pos2secs(inpoint), pos2mins(outpoint),pos2secs(outpoint), (tagver==2||tagver==4)?'2':'1', newname);
 
 	overwrite=0;
+	free(newname);
 	return;
 }
 
@@ -2608,10 +2591,7 @@ void writetable()
 	{
 		perror("\ncutmp3: failed writing temporary timetable in /tmp");exitseq(11);
 	}
-	fprintf(tblfile, userin);
-	fprintf(tblfile, " ");
-	fprintf(tblfile, userout);
-	fprintf(tblfile, "\n");
+	fprintf(tblfile, "%s %s\n", userin, userout);
 	fclose(tblfile);
 	a_b_used=1;
 	return;
@@ -2911,7 +2891,7 @@ int main(int argc, char *argv[])
 					rawmode=1;
 					break;
 				case 'o':
-					if (optarg!=0) snprintf(prefix,FN_LEN-1,optarg);
+					if (optarg!=0) strncpy(prefix, optarg, FN_LEN-1);
 //					else usage("Error: missing outputprefix");
 					forced_prefix=1;
 					break;
