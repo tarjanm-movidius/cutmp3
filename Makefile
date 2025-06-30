@@ -1,5 +1,5 @@
 NAME=cutmp3
-VERSION=3.0.3
+VERSION=3.0.4
 PREFIX?=/usr/local
 BINDIR=${PREFIX}/bin
 DATADIR=${PREFIX}/share

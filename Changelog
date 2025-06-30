@@ -1,4 +1,8 @@
 
+version 3.0.4:
+Fixed gcc15 compilation failing on bad signal handler prototypes
+Updated linenoise submodule
+
 version 3.0.3:
 Quickfix, eliminated warnings -Wunused-result and -Wformat-security
 

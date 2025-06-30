@@ -1,6 +1,6 @@
 Summary: Small and fast command line MP3 editor.
 Name: cutmp3
-Version: 3.0.3
+Version: 3.0.4
 Release: 1
 #Epoch: 1
 License: GPL

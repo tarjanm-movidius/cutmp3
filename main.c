@@ -16,7 +16,7 @@
 
 #include "cutmp3.h"
 
-#define VERSION "3.0.3"
+#define VERSION "3.0.4"
 #define YEAR "2022"
 
 /* general buffersize */
@@ -2519,21 +2519,21 @@ void  term_restore  (void)  {
 }  /* term_restore */
 
 /* Clean up terminal; called on exit */
-void  term_exit  ()  {
+void  term_exit  (int)  {
 	term_restore();
 	printf("\n\nbugreports to mail@puchalla-online.de\n\n");
 	exitseq(0);
 }	/* term_exit */
 
 /* Will be called when ctrl-z is pressed, this correctly handles the terminal */
-void  term_ctrlz  ()  {
+void  term_ctrlz  (int)  {
 	signal(SIGTSTP, term_ctrlz);
 	term_restore();
 	kill(getpid(), SIGSTOP);
 }  /* term_ctrlz */
 
 /* Will be called when application is continued after having been stopped */
-void  term_cont  ()  {
+void  term_cont  (int)  {
 	signal(SIGCONT, term_cont);
 	tcsetattr(0, TCSANOW, &current);
 }  /* term_cont */
