@@ -1,3 +1,12 @@
+version 4.0:
+Optimised file copy
+Cleaner id3tag handling
+Option for linenoise instead of readline
+Skipping file's first frame that tends to have some meta information
+
+version 3.0.4:
+Fixed gcc15 compilation failing on bad signal handler prototypes
+Updated linenoise submodule
 
 version 3.0.3:
 Quickfix, eliminated warnings -Wunused-result and -Wformat-security
